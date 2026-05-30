@@ -11,7 +11,7 @@
   #cesiumContainer { position: absolute; inset: 0; }
   .cesium-widget-credits, .cesium-viewer-bottom { font-size: 10px; }
 
-  #car { position: absolute; left: 50%; top: 72%; width: 60px; height: 72px; z-index: 100;
+  #car { position: absolute; left: 50%; top: 72%; width: 84px; height: 100px; z-index: 100;
     pointer-events: none; transform-origin: 50% 50%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); display: none; }
 
   #hud { position: absolute; left: 16px; bottom: 32px; z-index: 101;
@@ -100,11 +100,11 @@
   <script>
   // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
   var GANGNAM = { lat: 35.6812, lng: 139.7671 }; // 도쿄역
-  var AUTO_CRUISE = 48, ARRIVE_RADIUS = 170;
+  var AUTO_CRUISE = 78, ARRIVE_RADIUS = 170;
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
-  var CAM_BACK = 55, CAM_UP = 40, CAM_PITCH = -28;
-  var JET_OFFSET = 32; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
+  var CAM_BACK = 130, CAM_UP = 55, CAM_PITCH = -14;
+  var JET_OFFSET = 330; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "도쿄타워", lat: 35.65858, lng: 139.74543, pin: "🗼" },
@@ -123,7 +123,7 @@
 
   var state = { lat: GANGNAM.lat, lng: GANGNAM.lng, heading: 0, speed: 0, dist: 0 };
   var keys = {}, carEl = document.getElementById("car");
-  carEl.style.transform = "translate(-50%, -50%) perspective(800px) rotateX(22deg)";
+  carEl.style.transform = "translate(-50%, -50%) perspective(800px) rotateX(62deg)";
 
   var warnTimer = null;
   function showWarn(msg, color, persist) {
@@ -160,7 +160,7 @@
 
       Cesium.GoogleMaps.defaultApiKey = window.GOOGLE_API_KEY;
       tileset = await Cesium.createGooglePhotorealistic3DTileset();
-      scene.primitives.add(tileset); tileset.maximumScreenSpaceError = 8;
+      scene.primitives.add(tileset); tileset.maximumScreenSpaceError = 18;
 
       LANDMARKS.forEach(addEntity);
       document.getElementById("loading").style.display = "none";
