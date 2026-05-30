@@ -98,7 +98,7 @@
     <circle cx="88" cy="113" r="3.6" fill="#fff4cc"/><circle cx="112" cy="113" r="3.6" fill="#fff4cc"/>
   </svg>
 
-  <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">주행거리 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
+  <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">고도 <span id="alt">0</span> m · 주행 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
   <div id="help">✈️ <b>도쿄 F-15 비행</b><br /><kbd>↑</kbd>가속 <kbd>↓</kbd>감속 <kbd>←</kbd><kbd>→</kbd>방향<br /><span style="opacity:.7">시작 시 자동 비행</span></div>
   <div id="warn"></div>
   <div id="intro">✈️ F-15로 도쿄 명소<br>상공 비행을 시작합니다.</div>
@@ -122,7 +122,7 @@
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
   var CAM_BACK = 130, CAM_UP = 55, CAM_PITCH = -14;
-  var JET_OFFSET = 330; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
+  var JET_OFFSET = 520; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "도쿄타워", lat: 35.65858, lng: 139.74543, pin: "🗼" },
@@ -258,6 +258,7 @@
     // 지면/옥상을 낮게 추종(가까워 또렷). 부드럽게 따라가 상하 튐 방지
     if (scene.sampleHeight) { var gh = scene.sampleHeight(Cesium.Cartographic.fromDegrees(state.lng, state.lat)); if (gh !== undefined && !isNaN(gh)) lastGround += (gh - lastGround) * 0.08; }
     var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, lastGround + JET_OFFSET);
+    var _a=document.getElementById("alt"); if(_a)_a.textContent=Math.round(lastGround + JET_OFFSET);
     // 차 뒤·위에서 바라보는 추격 카메라
     var headRad = Cesium.Math.toRadians(state.heading);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(carPos);
@@ -298,9 +299,9 @@
   function setRoute(coords){
     if (routeEntity) viewer.entities.remove(routeEntity);
     if (!coords.length) { routeEntity=null; return; }
-    var flat=[]; coords.forEach(function(c){ flat.push(c[0],c[1]); });
-    routeEntity = viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat),
-      width: 6, clampToGround: true, material: Cesium.Color.fromCssColorString("#2b6cff").withAlpha(0.85) } });
+    var flat=[]; coords.forEach(function(c){ flat.push(c[0],c[1], lastGround + JET_OFFSET); });
+    routeEntity = viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(flat),
+      width: 5, material: Cesium.Color.fromCssColorString("#2b6cff").withAlpha(0.7) } });
   }
   // 웨이포인트를 부드러운 곡선으로 (코너에서 카메라가 휙 안 돌게)
   function smoothPath(pts, perSeg){
