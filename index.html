@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>강남 3D 드라이브 🏎️</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc0ee;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+  /* 지평선 위로 보이는 영역 = 하늘색 그라데이션 (지면 타일이 그 위를 덮음) */
+  #map { position: absolute; inset: 0;
+    background: linear-gradient(#5aa0e6 0%, #8fc0ee 45%, #c4dcf0 70%, #dfeaf4 100%); }
+  .maplibregl-ctrl-attrib { font-size: 10px; }
+
+  /* 자동차 (화면 중앙 고정, 지면 평면에 눕혀 3D) */
+  #car {
+    position: absolute; left: 50%; top: 72%;
+    width: 50px; height: 83px;
+    z-index: 100; pointer-events: none;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 10px 10px rgba(0,0,0,.55));
+  }
+
+  /* HUD (속도) */
+  #hud { position: absolute; left: 16px; bottom: 16px; z-index: 101;
+    background: rgba(20,20,28,.78); color: #fff; border-radius: 14px; padding: 14px 18px;
+    backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0,0,0,.35); min-width: 150px; }
+  #hud .spd { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
+  #hud .spd small { font-size: 14px; font-weight: 500; opacity: .7; margin-left: 4px; }
+  #hud .dist { font-size: 13px; opacity: .8; margin-top: 4px; }
+  #gauge { height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); margin-top: 10px; overflow: hidden; }
+  #gauge > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#4ade80,#facc15,#ef4444); transition: width .1s; }
+
+  /* 안내 */
+  #help { position: absolute; right: 16px; top: 16px; z-index: 101;
+    background: rgba(20,20,28,.78); color: #fff; border-radius: 14px; padding: 12px 16px;
+    font-size: 13px; line-height: 1.7; backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+  #help b { color: #8ab4ff; }
+  kbd { background: #333; border-radius: 5px; padding: 1px 7px; border: 1px solid #555; font-family: monospace; }
+
+  /* 알림 배너 */
+  #warn { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 200;
+    background: #b91c1c; color: #fff; padding: 10px 18px; border-radius: 12px; font-size: 13px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; max-width: 90%; }
+  #warn code, #warn b { background: rgba(0,0,0,.25); padding: 1px 5px; border-radius: 4px; }
+
+  /* 코스 미션 바 */
+  #course { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 101;
+    display: flex; gap: 8px; align-items: center; max-width: 92vw; }
+  #courseBtn { border: none; cursor: pointer; background: #2b6cff; color: #fff; font-weight: 700; font-size: 14px;
+    padding: 9px 16px; border-radius: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.35); white-space: nowrap; }
+  #courseBtn:active { transform: scale(.96); }
+  #courseInfo { display: none; gap: 9px; align-items: center; white-space: nowrap; overflow: hidden;
+    background: rgba(20,20,28,.85); color: #fff; font-size: 13px; font-weight: 600; padding: 9px 14px;
+    border-radius: 11px; backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  #courseInfo b { color: #8ab4ff; }
+  #courseArrow { display: inline-block; font-size: 17px; color: #4ade80; transition: transform .12s linear; }
+
+  /* 주소로 랜드마크 추가 */
+  #addr { position: absolute; left: 16px; top: 16px; z-index: 101; display: flex; gap: 6px; align-items: center;
+    background: rgba(20,20,28,.82); padding: 8px; border-radius: 12px; backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  #addr input { border: none; outline: none; border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 180px;
+    background: #fff; color: #111; }
+  #addr input.pin { width: 38px; text-align: center; }
+  #addr button { border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 700; cursor: pointer;
+    background: #2b6cff; color: #fff; }
+
+  /* 랜드마크 편집 패널 */
+  #lmtoggle { position: absolute; left: 16px; top: 66px; z-index: 101; border: none; cursor: pointer;
+    background: rgba(20,20,28,.82); color: #fff; font-size: 13px; font-weight: 700; padding: 8px 12px;
+    border-radius: 10px; backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  #lmpanel { position: absolute; left: 16px; top: 106px; z-index: 101; width: 252px; max-height: 44vh; overflow: auto;
+    background: rgba(20,20,28,.88); border-radius: 12px; padding: 8px; backdrop-filter: blur(8px);
+    box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; }
+  #lmpanel.open { display: block; }
+  .lmrow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .lmrow input { border: none; outline: none; border-radius: 7px; padding: 7px 8px; font-size: 13px; background: #fff; color: #111; }
+  .lmrow .rowpin { width: 36px; text-align: center; padding-left: 0; padding-right: 0; }
+  .lmrow .rowname { flex: 1; min-width: 0; }
+  .lmrow .rowdel { border: none; background: #3a3a44; color: #fff; border-radius: 7px; padding: 7px 9px; cursor: pointer; }
+  .lmrow .rowdel:hover { background: #b91c1c; }
+  #lmempty { color: #aaa; font-size: 12px; padding: 6px 4px; }
+
+  /* 줌 버튼 */
+  #zoom { position: absolute; right: 16px; bottom: 44px; z-index: 101; display: flex; flex-direction: column; gap: 8px; }
+  #zoom button { width: 46px; height: 46px; border: none; border-radius: 13px; cursor: pointer;
+    background: rgba(20,20,28,.82); color: #fff; font-size: 26px; font-weight: 700; line-height: 1;
+    backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(0,0,0,.35); transition: transform .06s; }
+  #zoom button:active { transform: scale(.92); }
+  #zoom button:disabled { opacity: .35; cursor: default; }
+
+  /* 시작 안내 토스트 */
+  #intro { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 250;
+    background: rgba(20,22,32,.92); color: #fff; padding: 20px 28px; border-radius: 16px; font-size: 19px;
+    font-weight: 700; text-align: center; box-shadow: 0 12px 44px rgba(0,0,0,.5); pointer-events: none; opacity: 0; }
+  #intro.show { animation: introFade 3.4s ease forwards; }
+  @keyframes introFade {
+    0% { opacity: 0; transform: translate(-50%, -42%) scale(.92); }
+    12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    82% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* 완주 축하 오버레이 */
+  #finish { position: absolute; inset: 0; z-index: 300; display: none; align-items: center; justify-content: center;
+    background: rgba(8,10,20,.6); backdrop-filter: blur(4px); }
+  #finish.show { display: flex; }
+  #finish .card { background: rgba(24,26,36,.96); color: #fff; border-radius: 20px; padding: 30px 36px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5); max-width: 90%; animation: pop .35s ease; }
+  @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #finish .emoji { font-size: 54px; line-height: 1; }
+  #finish h2 { margin: 12px 0 6px; font-size: 24px; }
+  #finish p { margin: 0 0 12px; opacity: .85; font-size: 14px; }
+  #finish .time { font-size: 15px; margin-bottom: 20px; }
+  #finish .time b { color: #4ade80; font-size: 26px; letter-spacing: -.5px; }
+  #finish button { border: none; border-radius: 12px; padding: 11px 24px; font-size: 15px; font-weight: 700;
+    cursor: pointer; background: #2b6cff; color: #fff; }
+
+  /* 랜드마크 마커 */
+  .lm { display: flex; flex-direction: column; align-items: center; white-space: nowrap; cursor: default; }
+  .lm .pin { font-size: 24px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  .lm .name { margin-top: 1px; background: rgba(20,20,28,.82); color: #fff; font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+  .lm.lm-done .name { opacity: .4; text-decoration: line-through; }
+</style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- 위에서 본 포르쉐 911 카브리올레(오픈카) — 가즈레드 -->
+  <svg id="car" viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#9e0014"/><stop offset=".5" stop-color="#ff4040"/><stop offset="1" stop-color="#9e0014"/>
+      </linearGradient>
+      <radialGradient id="hlGrad" cx=".4" cy=".35" r=".7">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#cfe3ff"/><stop offset="1" stop-color="#8aa0b8"/>
+      </radialGradient>
+      <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#3a3a3f"/><stop offset=".5" stop-color="#b8b8be"/><stop offset="1" stop-color="#3a3a3f"/>
+      </linearGradient>
+    </defs>
+    <g fill="#0e0e12">
+      <rect x="4" y="24" width="9" height="18" rx="3"/><rect x="47" y="24" width="9" height="18" rx="3"/>
+      <rect x="2" y="62" width="12" height="22" rx="3.5"/><rect x="46" y="62" width="12" height="22" rx="3.5"/>
+    </g>
+    <g fill="url(#rimGrad)" opacity=".55">
+      <rect x="7" y="29" width="3" height="8" rx="1.5"/><rect x="50" y="29" width="3" height="8" rx="1.5"/>
+      <rect x="5.5" y="68" width="5" height="10" rx="2"/><rect x="49.5" y="68" width="5" height="10" rx="2"/>
+    </g>
+    <path d="M30 5 C40 5 46 12 48 24 C50 34 51 44 51.5 56 C52 68 50 80 45 89 C41 95 35 97 30 97 C25 97 19 95 15 89 C10 80 8 68 8.5 56 C9 44 10 34 12 24 C14 12 20 5 30 5 Z"
+          fill="url(#bodyGrad)" stroke="#7a0010" stroke-width="1"/>
+    <path d="M30 9 C37 9 42 15 44 25 C45 35 46 46 45.5 58 C45 70 43 80 39 87 C36 92 33 94 30 94 C27 94 24 92 21 87 C17 80 15 70 14.5 58 C14 46 15 35 16 25 C18 15 23 9 30 9 Z"
+          fill="#ffffff" opacity=".16"/>
+    <path d="M22 14 C26 11 34 11 38 14" stroke="#7a0010" stroke-width=".8" fill="none" opacity=".6"/>
+    <circle cx="17" cy="17" r="5" fill="#1b1b21"/><circle cx="17" cy="17" r="3.6" fill="url(#hlGrad)"/>
+    <circle cx="43" cy="17" r="5" fill="#1b1b21"/><circle cx="43" cy="17" r="3.6" fill="url(#hlGrad)"/>
+    <path d="M12 36 l-5 1.2 l1 3.6 l5 -1.6 z" fill="#c2001a"/><path d="M48 36 l5 1.2 l-1 3.6 l-5 -1.6 z" fill="#c2001a"/>
+    <path d="M21 31 C25 28 35 28 39 31 L37.5 34 C33.5 31.5 26.5 31.5 22.5 34 Z" fill="#bfe0ff" stroke="#7a0010" stroke-width=".8"/>
+    <path d="M22 34 C26 32 34 32 38 34 C39.5 41 39.5 52 37.5 60.5 C34.5 63.5 25.5 63.5 22.5 60.5 C20.5 52 20.5 41 22 34 Z" fill="#1b1b1f"/>
+    <path d="M23.5 36 C26 34.5 34 34.5 36.5 36 C37.6 42 37.6 52 36 58.5 C33.5 61 26.5 61 24 58.5 C22.4 52 22.4 42 23.5 36 Z" fill="#2a2a30"/>
+    <rect x="23.4" y="41" width="6.3" height="13" rx="3" fill="#3a3a42"/><ellipse cx="26.55" cy="40.2" rx="2.7" ry="2.3" fill="#44444c"/>
+    <rect x="30.3" y="41" width="6.3" height="13" rx="3" fill="#3a3a42"/><ellipse cx="33.45" cy="40.2" rx="2.7" ry="2.3" fill="#44444c"/>
+    <rect x="29.4" y="40" width="1.2" height="16" fill="#0e0e12"/>
+    <ellipse cx="26.55" cy="58.5" rx="2.5" ry="1.9" fill="url(#bodyGrad)" stroke="#7a0010" stroke-width=".4"/>
+    <ellipse cx="33.45" cy="58.5" rx="2.5" ry="1.9" fill="url(#bodyGrad)" stroke="#7a0010" stroke-width=".4"/>
+    <g fill="#6a0010" opacity=".75">
+      <rect x="19" y="69" width="22" height="1.4" rx=".7"/><rect x="19" y="72.4" width="22" height="1.4" rx=".7"/>
+      <rect x="19" y="75.8" width="22" height="1.4" rx=".7"/><rect x="19" y="79.2" width="22" height="1.4" rx=".7"/>
+      <rect x="19" y="82.6" width="22" height="1.4" rx=".7"/>
+    </g>
+    <path d="M15 86 C23 83.5 37 83.5 45 86 L44 89 C37 87 23 87 16 89 Z" fill="#c2001a" stroke="#7a0010" stroke-width=".5"/>
+    <rect x="16" y="90" width="28" height="3" rx="1.5" fill="#ff2a2a"/><rect x="16" y="90" width="28" height="1.3" rx=".6" fill="#ffd0d0" opacity=".55"/>
+  </svg>
+
+  <div id="hud">
+    <div class="spd"><span id="spd">0</span><small>km/h</small></div>
+    <div class="dist">주행거리 <span id="dist">0.00</span> km</div>
+    <div id="gauge"><i></i></div>
+  </div>
+
+  <div id="help">
+    🏎️ <b>강남 3D 드라이브</b><br />
+    <kbd>↑</kbd> 가속 &nbsp; <kbd>↓</kbd> 브레이크/후진<br />
+    <kbd>←</kbd> <kbd>→</kbd> 좌/우 핸들 &nbsp; <kbd>Space</kbd> 급정거<br />
+    <kbd>+</kbd> <kbd>-</kbd> 줌<br />
+    <span style="opacity:.7">코스 시작 시 <b>자동주행</b>(도로 따라)</span>
+  </div>
+
+  <div id="warn"></div>
+  <div id="intro">🚗 강남구 의사회 임원 병원 순례를 시작하겠습니다.</div>
+
+  <div id="course">
+    <button id="courseBtn">🏁 임원순회 코스 시작</button>
+    <div id="courseInfo">
+      <span id="courseProg">0/0</span> · ⏱ <span id="courseTime">00:00</span>
+      · <span id="courseArrow">↑</span> <span id="courseNext">—</span> <span id="courseDist"></span>
+      <span id="courseRemain" style="opacity:.75"></span>
+    </div>
+  </div>
+
+  <div id="addr">
+    <input id="addrInput" type="text" placeholder="주소 입력 (예: 강남구 테헤란로 152)" />
+    <input id="addrPin" class="pin" type="text" value="📍" title="아이콘" />
+    <button id="addrBtn">추가</button>
+  </div>
+
+  <button id="lmtoggle">📍 랜드마크 편집</button>
+  <div id="lmpanel"></div>
+
+  <div id="zoom">
+    <button id="modeBtn" title="2D / 3D 전환" style="font-size:14px">2D</button>
+    <button id="zin" title="줌 인 (+)">+</button>
+    <button id="zout" title="줌 아웃 (−)">−</button>
+  </div>
+
+  <div id="finish">
+    <div class="card">
+      <div class="emoji">🎉</div>
+      <h2>완주 축하합니다!</h2>
+      <p>강남구의사회 임원 <b id="finishCount">27</b>곳을 모두 방문했습니다.</p>
+      <div class="time">소요 시간 <b id="finishTime">00:00</b></div>
+      <button id="finishBtn">다시 달리기</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script>
+  // ════════════════════════════════════════════════════════════
+  //  강남 3D 드라이브 — MapLibre GL (네이티브 3D: pitch/bearing + 3D 건물)
+  // ════════════════════════════════════════════════════════════
+  var GANGNAM = { lat: 37.4979, lng: 127.0276 };
+  var PITCH = 70;          // 카메라 기울기(도) — 포르자식 추격 시점 (수평에 가깝게)
+  var CAR_TILT = 58;       // 차 스프라이트 눕힘 각도 (가독성 위해 카메라보다 약간 덜)
+  var CAM_TOP_FRAC = 0.45; // 상단 패딩 비율 → 차를 화면 하단쪽(약 72%)에 배치
+  var viewZoom = 18;       // 줌 (클수록 확대=체감 빠름)
+  var MIN_ZOOM = 14, MAX_ZOOM = 20;
+
+  // ── 임원 병의원 랜드마크 (상호명 앞에 임원 성명) ──
+  var LANDMARKS = [
+    { name: "맹우재 지힐링스퀘어의원",          lat: 37.51685, lng: 127.02214, pin: "🩺" },
+    { name: "진옥현 강남연세우노비뇨기과의원",   lat: 37.49830, lng: 127.02980, pin: "🩺" },
+    { name: "송정환 연세코앤이비인후과의원",     lat: 37.49980, lng: 127.02716, pin: "🩺" },
+    { name: "노복균 에스원성형외과의원",        lat: 37.51542, lng: 127.02013, pin: "🩺" },
+    { name: "박현수 박소아청소년과의원",        lat: 37.48499, lng: 127.08782, pin: "🩺" },
+    { name: "권장덕 권장덕K성형외과의원",       lat: 37.52525, lng: 127.02808, pin: "🩺" },
+    { name: "심동석 심동석신경과의원",          lat: 37.52739, lng: 127.02940, pin: "🩺" },
+    { name: "최주현·구형진 눈에미소안과의원",   lat: 37.49555, lng: 127.02929, pin: "🩺" },
+    { name: "김유석 강남연세이비인후과의원",     lat: 37.51770, lng: 127.04086, pin: "🩺" },
+    { name: "한재욱 서울포레스트정신건강의학과의원", lat: 37.52302, lng: 127.04220, pin: "🩺" },
+    { name: "조원영 강남지인병원",              lat: 37.51279, lng: 127.03504, pin: "🏥" },
+    { name: "이상우 이상피부과의원",            lat: 37.48905, lng: 127.06719, pin: "🩺" },
+    { name: "박준규 슈어스성형외과의원",        lat: 37.49790, lng: 127.02760, pin: "🩺" },
+    { name: "송용섭 서울강남재활의학과의원",     lat: 37.49585, lng: 127.05275, pin: "🩺" },
+    { name: "방숙현 DR피부과의원",             lat: 37.52291, lng: 127.03986, pin: "🩺" },
+    { name: "양준상 양준상의원",                lat: 37.52370, lng: 127.03830, pin: "🩺" },
+    { name: "이성렬 담소유병원",                lat: 37.51410, lng: 127.03310, pin: "🏥" },
+    { name: "이정엽 압구정현대이비인후과의원",   lat: 37.52730, lng: 127.03950, pin: "🩺" },
+    { name: "홍성수 비에비스나무병원",          lat: 37.50957, lng: 127.03241, pin: "🏥" },
+    { name: "고홍기 굿모닝라이프소아청소년과의원", lat: 37.51606, lng: 127.04004, pin: "🩺" },
+    { name: "양혁재 메드렉스병원",              lat: 37.51972, lng: 127.02820, pin: "🏥" },
+    { name: "서동린 유앤린성형외과의원",        lat: 37.51614, lng: 127.03967, pin: "🩺" },
+    { name: "유민재 닥터스피부과의원 신사점",    lat: 37.51677, lng: 127.02090, pin: "🩺" },
+    { name: "강형근 더비비성형외과의원",        lat: 37.49879, lng: 127.02783, pin: "🩺" },
+    { name: "반재용 바노바기피부과의원",        lat: 37.51350, lng: 127.03490, pin: "🩺" },
+    { name: "정선화 두번째봄여성의원",          lat: 37.52795, lng: 127.03132, pin: "🩺" },
+    { name: "이형교 역삼의원",                  lat: 37.49356, lng: 127.04226, pin: "🩺" }
+  ];
+
+  // ── 차량 상태 / 물리 ──
+  var state = { lat: GANGNAM.lat, lng: GANGNAM.lng, heading: 0, speed: 0, dist: 0 };
+  var keys = {};
+  var carEl = document.getElementById("car");
+  var is3D = true;        // 2D/3D 모드
+  var camPadTop = 0;
+  // 3D: 차를 화면 하단(추격 시점)에 + 지면에 눕힘. 2D: 화면 중앙 + 평평.
+  function positionCar() {
+    var H = window.innerHeight;
+    if (is3D) {
+      camPadTop = H * CAM_TOP_FRAC;
+      carEl.style.top = ((camPadTop + H) / 2) + "px";
+      carEl.style.transform = "translate(-50%, -50%) perspective(800px) rotateX(" + CAR_TILT + "deg)";
+    } else {
+      camPadTop = 0;
+      carEl.style.top = "50%";
+      carEl.style.transform = "translate(-50%, -50%)";
+    }
+  }
+  window.addEventListener("resize", positionCar);
+  positionCar();
+
+  var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
+
+  function showWarn(msg, color) {
+    var w = document.getElementById("warn");
+    w.style.display = "block";
+    if (color) w.style.background = color;
+    w.innerHTML = msg;
+  }
+  function isTyping() {
+    var el = document.activeElement;
+    return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+  }
+  document.addEventListener("keydown", function (e) {
+    if (isTyping()) return;
+    keys[e.code] = true;
+    if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].indexOf(e.code) >= 0) e.preventDefault();
+    if (e.code === "Equal" || e.code === "NumpadAdd") { changeZoom(+1); e.preventDefault(); }
+    if (e.code === "Minus" || e.code === "NumpadSubtract") { changeZoom(-1); e.preventDefault(); }
+  });
+  document.addEventListener("keyup", function (e) { if (!isTyping()) keys[e.code] = false; });
+
+  function metersToLatLng(dLatM, dLngM, lat) {
+    return { dLat: dLatM / 111320, dLng: dLngM / (111320 * Math.cos(lat * Math.PI / 180)) };
+  }
+
+  // ── 지도 ──
+  var map = new maplibregl.Map({
+    container: "map",
+    style: "https://tiles.openfreemap.org/styles/liberty",
+    center: [GANGNAM.lng, GANGNAM.lat],
+    zoom: viewZoom, pitch: PITCH, bearing: 0,
+    interactive: false, maxPitch: 80, attributionControl: true
+  });
+  var mapReady = false;
+
+  map.on("load", function () {
+    addBuildings3D();
+    // 대기/하늘 (MapLibre 버전이 지원하면) — 미지원이면 CSS 하늘 그라데이션으로 표시
+    try {
+      if (typeof map.setSky === "function") {
+        map.setSky({ "sky-color": "#5aa0e6", "horizon-color": "#cfe3f5", "fog-color": "#dfeaf4",
+          "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.3, "atmosphere-blend": 0.7 });
+      }
+    } catch (e) {}
+    // 네비게이션 경로 레이어 (전체 경로 + 현재 구간 강조)
+    var emptyLine = { type: "Feature", geometry: { type: "LineString", coordinates: [] } };
+    map.addSource("route", { type: "geojson", data: emptyLine });
+    map.addSource("routeCurrent", { type: "geojson", data: emptyLine });
+    map.addLayer({ id: "route-casing", type: "line", source: "route",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": .5 } });
+    map.addLayer({ id: "route-line", type: "line", source: "route",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#2b6cff", "line-width": 5, "line-opacity": .85 } });
+    map.addLayer({ id: "route-current", type: "line", source: "routeCurrent",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#22e0c8", "line-width": 6.5, "line-opacity": .95 } });
+    LANDMARKS.forEach(addMarker);
+    renderLandmarkList();
+    mapReady = true;
+    requestAnimationFrame(tick);
+
+    // 시작 안내 메시지 + 곧바로 자율주행 시작
+    var introEl = document.getElementById("intro");
+    introEl.classList.add("show");
+    setTimeout(function () { introEl.classList.remove("show"); }, 3400);
+    startCourse();
+  });
+  map.on("error", function (e) {
+    showWarn("🗺️ 지도 로드 오류: " + (e && e.error && e.error.message ? e.error.message : "타일 서버 연결 실패"));
+  });
+
+  // OSM 건물 데이터를 fill-extrusion 으로 3D 입체화
+  function addBuildings3D() {
+    // 햇빛 방향광 → 건물 면마다 음영이 생겨 입체감 ↑
+    try { map.setLight({ anchor: "viewport", color: "#fff7ec", intensity: 0.5, position: [1.4, 205, 40] }); } catch (e) {}
+
+    // 높이별 색상(저층 베이지 → 중층 회색 → 고층 글래스블루) + 수직 그라데이션 음영
+    var hExpr = ["coalesce", ["get", "render_height"], ["get", "height"], 8];
+    var paint = {
+      "fill-extrusion-color": [
+        "interpolate", ["linear"], hExpr,
+        0, "#e2d8c8", 12, "#d2c9bb", 30, "#bcbcb8", 60, "#a7adb8", 110, "#8d9bb6", 200, "#6f86ad"
+      ],
+      "fill-extrusion-height": hExpr,
+      "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], ["get", "min_height"], 0],
+      "fill-extrusion-opacity": 1,
+      "fill-extrusion-vertical-gradient": true
+    };
+    if (map.getLayer("building-3d")) {
+      // liberty 스타일 기본 건물 레이어를 리얼한 톤으로 재도색
+      Object.keys(paint).forEach(function (k) { try { map.setPaintProperty("building-3d", k, paint[k]); } catch (e) {} });
+    } else if (!map.getLayer("3d-buildings")) {
+      map.addLayer({ id: "3d-buildings", source: "openmaptiles", "source-layer": "building",
+        type: "fill-extrusion", minzoom: 13, paint: paint });
+    }
+  }
+
+  // ── 수동 주행 (방향키) ──
+  function manualDrive(dt) {
+    if (keys.ArrowUp) state.speed += ACCEL * dt;
+    else if (keys.ArrowDown) state.speed -= BRAKE * dt;
+    else {
+      if (state.speed > 0) state.speed = Math.max(0, state.speed - FRICTION * dt);
+      else if (state.speed < 0) state.speed = Math.min(0, state.speed + FRICTION * dt);
+    }
+    if (keys.Space) state.speed *= 0.86;
+    state.speed = Math.max(MAX_REVERSE, Math.min(MAX_SPEED, state.speed));
+
+    var speedFactor = Math.min(1, Math.abs(state.speed) / 8);
+    var dir = state.speed >= 0 ? 1 : -1;
+    if (keys.ArrowLeft) state.heading -= TURN_RATE * dt * speedFactor * dir;
+    if (keys.ArrowRight) state.heading += TURN_RATE * dt * speedFactor * dir;
+
+    var rad = state.heading * Math.PI / 180;
+    var d = metersToLatLng(Math.cos(rad) * state.speed * dt, Math.sin(rad) * state.speed * dt, state.lat);
+    state.lat += d.dLat; state.lng += d.dLng;
+    state.dist += Math.abs(state.speed) * dt;
+  }
+
+  // ── 자동 주행 (코스 도로 경로를 따라 스스로 운전) ──
+  function autoDrive(dt) {
+    var path = course.path, cum = course.cum, total = course.total;
+    if (!path || path.length < 2 || !total) return;
+    var seg = course.segHint || 0;
+    // 다가오는 코너 각도에 따라 목표 속도 조절
+    var dirCur = bearingDeg(path[seg][1], path[seg][0], path[seg + 1][1], path[seg + 1][0]);
+    var target = AUTO_CRUISE;
+    if (seg < path.length - 2) {
+      var dirNext = bearingDeg(path[seg + 1][1], path[seg + 1][0], path[seg + 2][1], path[seg + 2][0]);
+      var turn = Math.abs(((dirCur - dirNext + 540) % 360) - 180);
+      var lead = Math.max(40, course.curSpeed * 1.6); // 속도에 비례해 코너를 미리 감속
+      if (turn > 22 && (cum[seg + 1] - course.s) < lead) target = Math.max(9, AUTO_CRUISE * (1 - turn / 150));
+    }
+    course.curSpeed += Math.max(-75 * dt, Math.min(24 * dt, target - course.curSpeed));
+    course.s = Math.min(total, course.s + course.curSpeed * dt);
+    while (seg < cum.length - 2 && cum[seg + 1] < course.s) seg++;
+    course.segHint = seg;
+    var segLen = cum[seg + 1] - cum[seg];
+    var f = segLen > 0 ? (course.s - cum[seg]) / segLen : 0;
+    var a = path[seg], b = path[seg + 1];
+    state.lng = a[0] + (b[0] - a[0]) * f;
+    state.lat = a[1] + (b[1] - a[1]) * f;
+    // 진행방향을 목표(세그먼트 방위)로 '부드럽게' 회전 — 직각코너에서 화면이 확 안 꺾이게
+    var tgtH = bearingDeg(a[1], a[0], b[1], b[0]);
+    var diff = ((tgtH - state.heading + 540) % 360) - 180;   // 최단 회전 방향(-180~180)
+    state.heading += diff * (1 - Math.exp(-5 * dt));         // 지수 감쇠로 매끄럽게
+    state.speed = course.curSpeed;
+    state.dist += course.curSpeed * dt;
+  }
+
+  // 코스 경로 좌표 배열을 자동주행용으로 세팅 (누적거리 계산)
+  function setCoursePath(coords) {
+    course.path = coords;
+    var cum = [0];
+    for (var i = 1; i < coords.length; i++)
+      cum[i] = cum[i - 1] + haversine(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+    course.cum = cum; course.total = cum[cum.length - 1] || 0;
+    course.s = 0; course.curSpeed = 0; course.segHint = 0;
+  }
+
+  // ── 게임 루프 ──
+  var lastT = 0;
+  function tick(t) {
+    var dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 0;
+    lastT = t;
+
+    if (course.active) { if (course.path) autoDrive(dt); }  // 코스 중엔 자동주행
+    else manualDrive(dt);                                    // 평소엔 방향키 수동주행
+
+    // 카메라: 3D=포르자식 추격 시점(차 하단), 2D=탑다운(차 중앙)
+    map.jumpTo({ center: [state.lng, state.lat], bearing: state.heading, pitch: is3D ? PITCH : 0, zoom: viewZoom,
+      padding: { top: camPadTop, bottom: 0, left: 0, right: 0 } });
+
+    updateCourse(t);
+
+    var kmh = Math.round(Math.abs(state.speed) * 3.6);
+    document.getElementById("spd").textContent = kmh;
+    document.getElementById("dist").textContent = (state.dist / 1000).toFixed(2);
+    document.querySelector("#gauge > i").style.width = (Math.abs(state.speed) / MAX_SPEED * 100) + "%";
+
+    requestAnimationFrame(tick);
+  }
+
+  // ── 랜드마크 마커 ──
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function lmContent(name, pin, visited) {
+    var cls = visited ? " lm-done" : "";
+    var p = visited ? "✅" : (pin || "📍");
+    return '<div class="lm' + cls + '"><div class="pin">' + esc(p) + '</div>' +
+           '<div class="name">' + esc(name) + '</div></div>';
+  }
+  function addMarker(item) {
+    var el = document.createElement("div");
+    el.innerHTML = lmContent(item.name, item.pin, item.visited);
+    item.el = el;
+    item.marker = new maplibregl.Marker({ element: el, anchor: "center" })
+      .setLngLat([item.lng, item.lat]).addTo(map);
+  }
+  function refreshMarker(item) {
+    if (item.el) item.el.innerHTML = lmContent(item.name, item.pin, item.visited);
+  }
+  function removeLandmark(item) {
+    if (item.marker) item.marker.remove();
+    var i = LANDMARKS.indexOf(item);
+    if (i >= 0) LANDMARKS.splice(i, 1);
+    renderLandmarkList();
+  }
+  function renderLandmarkList() {
+    var panel = document.getElementById("lmpanel");
+    panel.innerHTML = "";
+    if (!LANDMARKS.length) {
+      var e = document.createElement("div"); e.id = "lmempty";
+      e.textContent = "랜드마크가 없습니다. 좌측 상단에서 주소로 추가하세요.";
+      panel.appendChild(e); return;
+    }
+    LANDMARKS.forEach(function (item) {
+      var row = document.createElement("div"); row.className = "lmrow";
+      var pinIn = document.createElement("input"); pinIn.className = "rowpin"; pinIn.value = item.pin || "📍";
+      pinIn.addEventListener("input", function () { item.pin = pinIn.value || "📍"; refreshMarker(item); });
+      var nameIn = document.createElement("input"); nameIn.className = "rowname"; nameIn.value = item.name;
+      nameIn.addEventListener("input", function () { item.name = nameIn.value; refreshMarker(item); });
+      var del = document.createElement("button"); del.className = "rowdel"; del.textContent = "🗑"; del.title = "삭제";
+      del.addEventListener("click", function () { removeLandmark(item); });
+      row.appendChild(pinIn); row.appendChild(nameIn); row.appendChild(del);
+      panel.appendChild(row);
+    });
+  }
+
+  // 주소 → 좌표 (무료 Nominatim/OSM 지오코딩)
+  function addLandmarkByAddress(address, pin, done) {
+    var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" + encodeURIComponent(address);
+    fetch(url, { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.json(); })
+      .then(function (arr) {
+        if (!arr || !arr.length) { showWarn("📍 주소를 찾지 못했습니다: " + esc(address)); if (done) done(false); return; }
+        var a = arr[0], lat = parseFloat(a.lat), lng = parseFloat(a.lon);
+        var item = { name: a.display_name.split(",")[0] || address, lat: lat, lng: lng, pin: pin };
+        addMarker(item); LANDMARKS.push(item); renderLandmarkList();
+        map.flyTo({ center: [lng, lat], zoom: 17 });
+        showWarn("✅ 랜드마크 추가: <b>" + esc(item.name) + "</b> — 목록에서 이름 수정 가능", "#15803d");
+        if (done) done(true);
+      })
+      .catch(function () { showWarn("📍 지오코딩 요청 실패 (네트워크)"); if (done) done(false); });
+  }
+  window.addLandmarkByAddress = addLandmarkByAddress;
+
+  // ── 코스 미션 ──
+  var course = { active: false, order: [], idx: 0, startT: null, done: 0,
+                 path: null, cum: null, total: 0, s: 0, curSpeed: 0, segHint: 0 };
+  var ARRIVE_RADIUS = 100;   // 병원 도착 판정 반경 (m)
+  var AUTO_CRUISE = 83.3;    // 자동주행 순항 속도 (m/s ≈ 300km/h)
+
+  function haversine(la1, lo1, la2, lo2) {
+    var R = 6371000, t = Math.PI / 180;
+    var dLa = (la2 - la1) * t, dLo = (lo2 - lo1) * t;
+    var a = Math.sin(dLa/2)*Math.sin(dLa/2) + Math.cos(la1*t)*Math.cos(la2*t)*Math.sin(dLo/2)*Math.sin(dLo/2);
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function bearingDeg(la1, lo1, la2, lo2) {
+    var t = Math.PI / 180;
+    var y = Math.sin((lo2-lo1)*t) * Math.cos(la2*t);
+    var x = Math.cos(la1*t)*Math.sin(la2*t) - Math.sin(la1*t)*Math.cos(la2*t)*Math.cos((lo2-lo1)*t);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+  function fmtTime(ms) {
+    var s = Math.floor(ms / 1000);
+    return ("" + Math.floor(s/60)).padStart(2, "0") + ":" + ("" + (s%60)).padStart(2, "0");
+  }
+  // 최근접 이웃으로 1차 순서
+  function nearestNeighbor(lat, lng) {
+    var rem = LANDMARKS.slice(), route = [], cLat = lat, cLng = lng;
+    while (rem.length) {
+      var bi = 0, bd = Infinity;
+      for (var i = 0; i < rem.length; i++) {
+        var dd = haversine(cLat, cLng, rem[i].lat, rem[i].lng);
+        if (dd < bd) { bd = dd; bi = i; }
+      }
+      var nx = rem.splice(bi, 1)[0]; route.push(nx); cLat = nx.lat; cLng = nx.lng;
+    }
+    return route;
+  }
+  function seqLength(seq, sLat, sLng) {
+    var d = 0, pLat = sLat, pLng = sLng;
+    for (var i = 0; i < seq.length; i++) { d += haversine(pLat, pLng, seq[i].lat, seq[i].lng); pLat = seq[i].lat; pLng = seq[i].lng; }
+    return d;
+  }
+  // 2-opt 으로 교차 제거 → 단순한 순서
+  function twoOpt(seq, sLat, sLng) {
+    var best = seq.slice(), n = best.length, improved = true, pass = 0;
+    while (improved && pass < 40) {
+      improved = false; pass++;
+      var baseLen = seqLength(best, sLat, sLng);
+      for (var i = 0; i < n - 1; i++) {
+        for (var k = i + 1; k < n; k++) {
+          var cand = best.slice(0, i).concat(best.slice(i, k + 1).reverse(), best.slice(k + 1));
+          var cl = seqLength(cand, sLat, sLng);
+          if (cl < baseLen - 1) { best = cand; baseLen = cl; improved = true; }
+        }
+      }
+    }
+    return best;
+  }
+  // 70m 안에 겹치는 정류지는 하나로 합침 (같은 건물 등) — 어차피 100m 스캔으로 다 체크됨
+  function dedupeStops(seq) {
+    var kept = [];
+    seq.forEach(function (p) {
+      if (!kept.some(function (q) { return haversine(p.lat, p.lng, q.lat, q.lng) < 70; })) kept.push(p);
+    });
+    return kept;
+  }
+  function buildStops(lat, lng) {
+    return dedupeStops(twoOpt(nearestNeighbor(lat, lng), lat, lng));
+  }
+  function setLine(srcId, coords) {
+    var src = map.getSource(srcId);
+    if (src) src.setData({ type: "Feature", geometry: { type: "LineString", coordinates: coords } });
+  }
+  // 도로 경로 계산 (무료 OSRM, 키 불필요)
+  function fetchRoadRoute(coords) {
+    var path = coords.map(function (c) { return c[0] + "," + c[1]; }).join(";");
+    var url = "https://router.project-osrm.org/route/v1/driving/" + path + "?overview=full&geometries=geojson";
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      return (j && j.code === "Ok" && j.routes && j.routes.length) ? j.routes[0] : null;
+    }).catch(function () { return null; });
+  }
+  function startCourse() {
+    LANDMARKS.forEach(function (p) { if (p.visited) { p.visited = false; refreshMarker(p); } });
+    course.order = buildStops(state.lat, state.lng);     // 단순화된 정류지(앵커)
+    course.done = 0; course.startT = null; course.active = true; course.path = null;
+    var coords = [[state.lng, state.lat]];
+    course.order.forEach(function (p) { coords.push([p.lng, p.lat]); });
+    setLine("route", coords); setLine("routeCurrent", []);
+    document.getElementById("courseBtn").textContent = "■ 코스 중단";
+    document.getElementById("courseInfo").style.display = "flex";
+    showWarn("🧭 도로 경로 계산 중…", "#2b6cff");
+    fetchRoadRoute(coords).then(function (route) {
+      if (!course.active) return;
+      if (route) {
+        setLine("route", route.geometry.coordinates);
+        setCoursePath(route.geometry.coordinates);
+        showWarn("🧭 자동주행 시작 — 큰길 위주로 27곳을 순회합니다", "#15803d");
+      } else {
+        setCoursePath(coords);
+        showWarn("⚠️ 도로 경로 서버 응답 없음 — 직선으로 자동주행합니다.");
+      }
+    });
+    updateCourse(0);
+  }
+  function stopCourse() {
+    course.active = false; course.path = null; state.speed = 0;
+    setLine("route", []); setLine("routeCurrent", []);
+    document.getElementById("courseBtn").textContent = "🏁 임원순회 코스 시작";
+    document.getElementById("courseInfo").style.display = "none";
+  }
+  function finishCourse(t) {
+    var total = fmtTime((t && course.startT) ? (t - course.startT) : 0);
+    course.active = false; course.path = null; state.speed = 0;
+    setLine("route", []); setLine("routeCurrent", []);
+    document.getElementById("courseProg").textContent = LANDMARKS.length + "/" + LANDMARKS.length;
+    document.getElementById("courseInfo").style.display = "none";
+    document.getElementById("courseBtn").textContent = "🏁 임원순회 코스 시작";
+    // 축하 오버레이
+    document.getElementById("finishCount").textContent = LANDMARKS.length;
+    document.getElementById("finishTime").textContent = total;
+    document.getElementById("finish").classList.add("show");
+  }
+  function updateCourse(t) {
+    if (!course.active) return;
+    if (course.startT === null && t) course.startT = t;
+    // 모든 미방문 병원 중 100m 이내면 체크 (현재 목표만이 아니라 지나치는 건 다 처리)
+    var next = null, nd = Infinity;
+    for (var i = 0; i < LANDMARKS.length; i++) {
+      var p = LANDMARKS[i];
+      var d = haversine(state.lat, state.lng, p.lat, p.lng);
+      if (!p.visited && d < ARRIVE_RADIUS) { p.visited = true; refreshMarker(p); course.done++; continue; }
+      if (!p.visited && d < nd) { nd = d; next = p; }
+    }
+    if (course.done >= LANDMARKS.length) { finishCourse(t); return; }
+    if (course.path && course.total && course.s >= course.total - 0.5) { finishCourse(t); return; }
+
+    document.getElementById("courseProg").textContent = course.done + "/" + LANDMARKS.length;
+    document.getElementById("courseTime").textContent = fmtTime((t && course.startT) ? (t - course.startT) : 0);
+    if (next) {
+      document.getElementById("courseNext").innerHTML = "<b>" + esc(next.name) + "</b>";
+      document.getElementById("courseDist").textContent = nd >= 1000 ? (nd/1000).toFixed(2) + "km" : Math.round(nd) + "m";
+      document.getElementById("courseArrow").style.transform =
+        "rotate(" + (bearingDeg(state.lat, state.lng, next.lat, next.lng) - state.heading) + "deg)";
+    }
+    var remEl = document.getElementById("courseRemain");
+    if (course.path && course.total) {
+      var road = Math.max(0, course.total - course.s);
+      remEl.textContent = "· 남은 " + (road/1000).toFixed(1) + "km · 약 " + Math.max(1, Math.round(road / AUTO_CRUISE / 60)) + "분";
+    } else { remEl.textContent = ""; }
+  }
+
+  // ── 줌 ──
+  function changeZoom(delta) {
+    viewZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom + delta));
+    updateZoomButtons();
+  }
+  function updateZoomButtons() {
+    document.getElementById("zin").disabled = viewZoom >= MAX_ZOOM;
+    document.getElementById("zout").disabled = viewZoom <= MIN_ZOOM;
+  }
+
+  // ── UI 와이어링 ──
+  (function () {
+    var zin = document.getElementById("zin"), zout = document.getElementById("zout");
+    zin.addEventListener("click", function () { changeZoom(+1); zin.blur(); });
+    zout.addEventListener("click", function () { changeZoom(-1); zout.blur(); });
+    updateZoomButtons();
+
+    var btn = document.getElementById("courseBtn");
+    btn.addEventListener("click", function () { if (course.active) stopCourse(); else startCourse(); btn.blur(); });
+
+    var modeBtn = document.getElementById("modeBtn");
+    modeBtn.addEventListener("click", function () {
+      is3D = !is3D; positionCar(); modeBtn.textContent = is3D ? "2D" : "3D"; modeBtn.blur();
+    });
+
+    var finishBtn = document.getElementById("finishBtn");
+    finishBtn.addEventListener("click", function () {
+      document.getElementById("finish").classList.remove("show");
+      startCourse();
+    });
+
+    var toggle = document.getElementById("lmtoggle"), panel = document.getElementById("lmpanel");
+    toggle.addEventListener("click", function () { panel.classList.toggle("open"); toggle.blur(); });
+
+    var input = document.getElementById("addrInput"), pinInput = document.getElementById("addrPin"),
+        addBtn = document.getElementById("addrBtn");
+    function submit() {
+      var q = input.value.trim(); if (!q) return;
+      addLandmarkByAddress(q, pinInput.value.trim() || "📍", function (ok) { if (ok) { input.value = ""; input.blur(); } });
+    }
+    addBtn.addEventListener("click", submit);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+  })();
+  </script>
+</body>
+</html>
