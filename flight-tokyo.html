@@ -11,7 +11,7 @@
   #cesiumContainer { position: absolute; inset: 0; }
   .cesium-widget-credits, .cesium-viewer-bottom { font-size: 10px; }
 
-  #car { position: absolute; left: 50%; top: 72%; width: 84px; height: 100px; z-index: 100;
+  #car { position: absolute; left: 50%; top: 72%; width: 132px; height: 103px; z-index: 100;
     pointer-events: none; transform-origin: 50% 50%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); display: none; }
 
   #hud { position: absolute; left: 16px; bottom: 32px; z-index: 101;
@@ -68,16 +68,34 @@
 <body>
   <div id="cesiumContainer"></div>
 
-  <svg id="car" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="jetBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5f656e"/><stop offset=".5" stop-color="#9aa0a9"/><stop offset="1" stop-color="#5f656e"/></linearGradient></defs>
-    <path d="M50 42 L93 88 L93 97 L55 76 L55 102 L61 112 L39 112 L45 102 L45 76 L7 97 L7 88 Z" fill="url(#jetBody)" stroke="#3c4047" stroke-width="1"/>
-    <path d="M50 3 C54 12 56 22 56 34 L56 95 C56 106 53 113 50 117 C47 113 44 106 44 95 L44 34 C44 22 46 12 50 3 Z" fill="url(#jetBody)" stroke="#3c4047" stroke-width="1"/>
-    <rect x="39.5" y="40" width="6" height="28" rx="2" fill="#4a4e56"/><rect x="54.5" y="40" width="6" height="28" rx="2" fill="#4a4e56"/>
-    <path d="M45 94 L41 110 L45 110 L49 96 Z" fill="#7a808a" stroke="#3c4047" stroke-width=".7"/><path d="M55 94 L59 110 L55 110 L51 96 Z" fill="#7a808a" stroke="#3c4047" stroke-width=".7"/>
-    <path d="M50 92 L66 104 L66 108 L50 100 L34 108 L34 104 Z" fill="#7a808a" stroke="#3c4047" stroke-width=".7"/>
-    <rect x="45" y="113" width="4" height="6" rx="1.6" fill="#2a2d33"/><rect x="51" y="113" width="4" height="6" rx="1.6" fill="#2a2d33"/>
-    <path d="M50 13 C53.5 16 53.5 27 50 31 C46.5 27 46.5 16 50 13 Z" fill="#16263a"/><path d="M50 15 C52 17 52 24 50 27 C48 24 48 17 50 15 Z" fill="#3f6f9e" opacity=".7"/>
-    <circle cx="50" cy="5" r="1.3" fill="#2a2d33"/>
+  <svg id="car" viewBox="0 0 200 156" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b7bdc6"/><stop offset=".55" stop-color="#878d96"/><stop offset="1" stop-color="#5b6068" /></linearGradient>
+      <radialGradient id="flame" cx="0.5" cy="0.1" r="0.95"><stop offset="0" stop-color="#fffdf0"/><stop offset=".2" stop-color="#ffd23b"/><stop offset=".5" stop-color="#ff7a18"/><stop offset=".78" stop-color="#8a3bd6"/><stop offset="1" stop-color="#3b6fe0" stop-opacity="0"/></radialGradient>
+      <radialGradient id="noz" cx="0.5" cy="0.45" r="0.55"><stop offset="0" stop-color="#fff0c0"/><stop offset=".45" stop-color="#c24a12"/><stop offset="1" stop-color="#17171c"/></radialGradient>
+    </defs>
+    <!-- 애프터버너 화염 -->
+    <path d="M83 116 C78 138 87 156 90 156 C93 150 93 134 93 120 Z" fill="url(#flame)"/>
+    <path d="M117 116 C122 138 113 156 110 156 C107 150 107 134 107 120 Z" fill="url(#flame)"/>
+    <!-- 주익 (넓게 스웹트) -->
+    <path d="M72 80 L10 106 L10 114 L74 98 Z" fill="url(#metal)" stroke="#474b53" stroke-width="1"/>
+    <path d="M128 80 L190 106 L190 114 L126 98 Z" fill="url(#metal)" stroke="#474b53" stroke-width="1"/>
+    <rect x="5" y="104" width="13" height="3.4" rx="1.7" fill="#dadde2"/><rect x="182" y="104" width="13" height="3.4" rx="1.7" fill="#dadde2"/>
+    <!-- 수평미익 -->
+    <path d="M80 102 L54 118 L56 123 L84 112 Z" fill="#838992" stroke="#474b53" stroke-width=".8"/>
+    <path d="M120 102 L146 118 L144 123 L116 112 Z" fill="#838992" stroke="#474b53" stroke-width=".8"/>
+    <!-- 쌍수직미익 (바깥쪽 기울임) -->
+    <path d="M85 60 L75 16 L81 16 L93 62 Z" fill="url(#metal)" stroke="#474b53" stroke-width=".8"/>
+    <path d="M115 60 L125 16 L119 16 L107 62 Z" fill="url(#metal)" stroke="#474b53" stroke-width=".8"/>
+    <!-- 동체/엔진 하우징 -->
+    <path d="M77 50 C82 45 118 45 123 50 C129 60 129 98 120 116 C112 122 88 122 80 116 C71 98 71 60 77 50 Z" fill="url(#metal)" stroke="#474b53" stroke-width="1.2"/>
+    <rect x="96.5" y="48" width="7" height="64" rx="3.5" fill="#767c85"/>
+    <!-- 캐노피 -->
+    <path d="M100 30 C109 33 109 52 100 56 C91 52 91 33 100 30 Z" fill="#202b3a"/>
+    <path d="M100 33 C105 35 105 48 100 51 C95 48 95 35 100 33 Z" fill="#d2b257" opacity=".85"/>
+    <!-- 노즐 + 글로우 -->
+    <circle cx="88" cy="113" r="9.5" fill="url(#noz)"/><circle cx="112" cy="113" r="9.5" fill="url(#noz)"/>
+    <circle cx="88" cy="113" r="3.6" fill="#fff4cc"/><circle cx="112" cy="113" r="3.6" fill="#fff4cc"/>
   </svg>
 
   <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">주행거리 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
@@ -123,7 +141,7 @@
 
   var state = { lat: GANGNAM.lat, lng: GANGNAM.lng, heading: 0, speed: 0, dist: 0 };
   var keys = {}, carEl = document.getElementById("car");
-  carEl.style.transform = "translate(-50%, -50%) perspective(800px) rotateX(62deg)";
+  carEl.style.transform = "translate(-50%, -50%)"; // 후방 뷰라 기울임 불필요
 
   var warnTimer = null;
   function showWarn(msg, color, persist) {
