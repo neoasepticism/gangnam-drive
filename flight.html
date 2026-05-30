@@ -90,7 +90,7 @@
   <script>
   // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
   var GANGNAM = { lat: 37.4979, lng: 127.0276 };
-  var AUTO_CRUISE = 78, ARRIVE_RADIUS = 170;
+  var AUTO_CRUISE = 78, ARRIVE_RADIUS = 500;
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 42;
   // 추격 카메라 파라미터 (미터)
   var CAM_BACK = 130, CAM_UP = 55, CAM_PITCH = -14;
@@ -276,7 +276,7 @@
   function nearestNeighbor(lat,lng){ var rem=LANDMARKS.slice(),r=[],cLat=lat,cLng=lng; while(rem.length){var bi=0,bd=Infinity;for(var i=0;i<rem.length;i++){var d=haversine(cLat,cLng,rem[i].lat,rem[i].lng);if(d<bd){bd=d;bi=i;}}var nx=rem.splice(bi,1)[0];r.push(nx);cLat=nx.lat;cLng=nx.lng;}return r; }
   function seqLength(seq,sLat,sLng){ var d=0,pLat=sLat,pLng=sLng; for(var i=0;i<seq.length;i++){d+=haversine(pLat,pLng,seq[i].lat,seq[i].lng);pLat=seq[i].lat;pLng=seq[i].lng;} return d; }
   function twoOpt(seq,sLat,sLng){ var best=seq.slice(),n=best.length,improved=true,pass=0; while(improved&&pass<40){improved=false;pass++;var bl=seqLength(best,sLat,sLng);for(var i=0;i<n-1;i++)for(var k=i+1;k<n;k++){var c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1));var cl=seqLength(c,sLat,sLng);if(cl<bl-1){best=c;bl=cl;improved=true;}}}return best; }
-  function dedupeStops(seq){ var kept=[]; seq.forEach(function(p){ if(!kept.some(function(q){return haversine(p.lat,p.lng,q.lat,q.lng)<70;})) kept.push(p); }); return kept; }
+  function dedupeStops(seq){ var kept=[]; seq.forEach(function(p){ if(!kept.some(function(q){return haversine(p.lat,p.lng,q.lat,q.lng)<480;})) kept.push(p); }); return kept; }
   function buildStops(lat,lng){ return dedupeStops(twoOpt(nearestNeighbor(lat,lng),lat,lng)); }
   function fetchRoadRoute(coords){
     var path=coords.map(function(c){return c[0]+","+c[1];}).join(";");
@@ -307,7 +307,7 @@
   }
   function startCourse(){
     LANDMARKS.forEach(function(p){ if(p.visited){p.visited=false;refreshEntity(p);} });
-    course.order=LANDMARKS.slice().sort(function(a,b){return a.lng-b.lng;}); course.done=0; course.startT=null; course.active=true; course.path=null;
+    course.order=dedupeStops(LANDMARKS.slice().sort(function(a,b){return a.lng-b.lng;})); course.done=0; course.startT=null; course.active=true; course.path=null;
     var coords=[[state.lng,state.lat]]; course.order.forEach(function(p){coords.push([p.lng,p.lat]);});
     coords = smoothPath(coords, 28); // 부드러운 곡선 비행 경로
     setRoute(coords);
