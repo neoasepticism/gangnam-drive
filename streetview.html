@@ -94,6 +94,10 @@
     naver.maps.Event.addListener(pano, "init", function(){ dbg("init OK — 거리뷰 로드됨"); hideLoading(); aimAtTarget(); setTimeout(function(){ setPlaying(true); }, 3000); });
     naver.maps.Event.addListener(pano, "pano_changed", function(){ var id = pano.getPanoId ? pano.getPanoId() : "?"; dbg("pano_changed id=" + id); hideLoading(); aimAtTarget(); });
     naver.maps.Event.addListener(pano, "pano_status", function(s){ dbg("pano_status=" + (typeof s==="object"?JSON.stringify(s):s)); });
+    // 캔버스 크기 갱신 (검은화면 방지)
+    setTimeout(function(){ try{ naver.maps.Event.trigger(pano,"resize"); dbg("resize 트리거"); }catch(e){} }, 500);
+    setTimeout(function(){ try{ naver.maps.Event.trigger(pano,"resize"); }catch(e){} }, 1500);
+    window.addEventListener("resize", function(){ try{ naver.maps.Event.trigger(pano,"resize"); }catch(e){} });
     showAt(0);
     setTimeout(function(){ hideLoading(); if(pano && pano.getPanoId && !pano.getPanoId()) dbg("panoId 없음 — 거리뷰 타일 인증(도메인) 또는 위치에 거리뷰 없음"); }, 7000);
   }
