@@ -104,7 +104,7 @@
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
   var CAM_BACK = 150, CAM_UP = 110, CAM_PITCH = -33;
-  var ALT = 220; // 비행 고도(m)
+  var FLIGHT_ALT = 320; // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "맹우재 지힐링스퀘어의원", lat: 37.51685, lng: 127.02214, pin: "🩺" },
@@ -252,12 +252,8 @@
 
   // ── 카메라 + 차 스프라이트 (매 프레임) ──
   function renderFrame(){
-    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, lastGround + ALT);
-    // 지면 높이 샘플 (3D 타일)
-    if (scene.sampleHeight) {
-      var h = scene.sampleHeight(Cesium.Cartographic.fromDegrees(state.lng, state.lat));
-      if (h !== undefined && !isNaN(h)) { lastGround = h; carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, h + ALT); }
-    }
+    // 일정한 절대 고도로 평탄 비행 (건물 위를 지나도 상하로 안 튐)
+    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, FLIGHT_ALT);
     // 차 뒤·위에서 바라보는 추격 카메라
     var headRad = Cesium.Math.toRadians(state.heading);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(carPos);
@@ -302,10 +298,28 @@
     routeEntity = viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat),
       width: 6, clampToGround: true, material: Cesium.Color.fromCssColorString("#2b6cff").withAlpha(0.85) } });
   }
+  // 웨이포인트를 부드러운 곡선으로 (코너에서 카메라가 휙 안 돌게)
+  function smoothPath(pts, perSeg){
+    if (pts.length < 3) return pts.slice();
+    function pt(i){ return pts[Math.max(0, Math.min(pts.length-1, i))]; }
+    var out = [];
+    for (var i=0;i<pts.length-1;i++){
+      var p0=pt(i-1),p1=pt(i),p2=pt(i+1),p3=pt(i+2);
+      for (var j=0;j<perSeg;j++){
+        var t=j/perSeg, t2=t*t, t3=t2*t;
+        var lng=0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3);
+        var lat=0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3);
+        out.push([lng,lat]);
+      }
+    }
+    out.push(pts[pts.length-1]);
+    return out;
+  }
   function startCourse(){
     LANDMARKS.forEach(function(p){ if(p.visited){p.visited=false;refreshEntity(p);} });
     course.order=buildStops(state.lat,state.lng); course.done=0; course.startT=null; course.active=true; course.path=null;
     var coords=[[state.lng,state.lat]]; course.order.forEach(function(p){coords.push([p.lng,p.lat]);});
+    coords = smoothPath(coords, 16); // 부드러운 곡선 비행 경로
     setRoute(coords);
     document.getElementById("courseBtn").textContent="■ 코스 중단"; document.getElementById("courseInfo").style.display="flex";
     setCoursePath(coords); // 직선 비행 경로 (도로 불필요)
