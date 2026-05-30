@@ -89,8 +89,8 @@
   <script src="https://unpkg.com/cesium@1.124/Build/Cesium/Cesium.js"></script>
   <script>
   // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
-  var GANGNAM = { lat: 37.4979, lng: 127.0276 };
-  var AUTO_CRUISE = 78, ARRIVE_RADIUS = 500;
+  var GANGNAM = { lat: 37.48499, lng: 127.08782 }; // 박현수 박소아청소년과의원에서 출발
+  var AUTO_CRUISE = 97, ARRIVE_RADIUS = 500;
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 42;
   // 추격 카메라 파라미터 (미터)
   var CAM_BACK = 130, CAM_UP = 55, CAM_PITCH = -14;
@@ -307,7 +307,7 @@
   }
   function startCourse(){
     LANDMARKS.forEach(function(p){ if(p.visited){p.visited=false;refreshEntity(p);} });
-    course.order=dedupeStops(LANDMARKS.slice().sort(function(a,b){return a.lng-b.lng;})); course.done=0; course.startT=null; course.active=true; course.path=null;
+    course.order=dedupeStops(LANDMARKS.slice().sort(function(a,b){return b.lng-a.lng;})); course.done=0; course.startT=null; course.active=true; course.path=null;
     var coords=[[state.lng,state.lat]]; course.order.forEach(function(p){coords.push([p.lng,p.lat]);});
     coords = smoothPath(coords, 28); // 부드러운 곡선 비행 경로
     setRoute(coords);
