@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>강남 임원 거리뷰 순례 🚶</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+  #pano { position: absolute; inset: 0; }
+
+  #topbar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); z-index: 20;
+    background: rgba(20,20,28,.82); color: #fff; border-radius: 14px; padding: 11px 20px; backdrop-filter: blur(8px);
+    box-shadow: 0 6px 24px rgba(0,0,0,.4); text-align: center; max-width: 92vw; }
+  #topbar .prog { font-size: 12px; opacity: .8; letter-spacing: 1px; }
+  #topbar .name { font-size: 19px; font-weight: 800; margin-top: 2px; }
+  #topbar .addr { font-size: 12px; opacity: .7; margin-top: 2px; }
+
+  #ctrl { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 20; display: flex; gap: 10px; }
+  #ctrl button { border: none; cursor: pointer; background: rgba(20,20,28,.82); color: #fff; font-size: 15px; font-weight: 700;
+    padding: 11px 18px; border-radius: 12px; backdrop-filter: blur(8px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  #ctrl button:active { transform: scale(.95); }
+  #ctrl .play { background: #2b6cff; }
+
+  #maker { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 20; font-size: 16px; font-weight: 700;
+    color: #fff; white-space: nowrap; background: rgba(20,20,28,.6); padding: 6px 14px; border-radius: 10px; backdrop-filter: blur(6px); text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+  #maker a { color: #8ab4ff; text-decoration: none; font-weight: 800; }
+
+  #intro { position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%); z-index: 30; background: rgba(20,22,32,.92);
+    color: #fff; padding: 20px 28px; border-radius: 16px; font-size: 19px; font-weight: 700; text-align: center; box-shadow: 0 12px 44px rgba(0,0,0,.5); pointer-events: none; opacity: 0; }
+  #intro.show { animation: introFade 3.4s ease forwards; }
+  @keyframes introFade { 0%{opacity:0;} 12%{opacity:1;} 82%{opacity:1;} 100%{opacity:0;} }
+
+  #msg { position: absolute; left: 50%; top: 56%; transform: translate(-50%,-50%); z-index: 25; background: rgba(120,30,30,.9);
+    color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 14px; text-align: center; display: none; max-width: 86%; }
+  #loading { position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: #0b1020; color: #fff; font-size: 16px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+  <div id="pano"></div>
+  <div id="topbar"><div class="prog"><span id="prog">1/27</span> · 거리뷰 순례</div><div class="name" id="name">—</div><div class="addr" id="sub">강남구의사회 임원</div></div>
+  <div id="msg"></div>
+  <div id="ctrl">
+    <button id="prev">⏮ 이전</button>
+    <button id="play" class="play">⏯ 자동</button>
+    <button id="next">다음 ⏭</button>
+  </div>
+  <div id="intro">🚶 강남구 의사회 임원 병원<br>거리뷰 순례를 시작합니다.</div>
+  <div id="maker">제작자 <a href="https://neoskepticmd.substack.com" target="_blank" rel="noopener noreferrer">Neoskepticmd.substack.com</a></div>
+  <div id="loading">🛰️ 네이버 거리뷰를 불러오는 중…</div>
+
+  <script>
+    window.navermap_authFailure = function () {
+      document.getElementById("loading").innerHTML = "🔑 네이버 인증 실패<br><small>네이버 Maps 앱의 Web 서비스 URL에 <b>https://neoasepticism.github.io</b> 등록이 필요합니다.</small>";
+    };
+  </script>
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uf8n95bwx2&submodules=panorama"></script>
+  <script>
+  // 좌표는 게임과 동일 (네이버 정밀 좌표) — 빌드시 주입됨
+  var LANDMARKS = [
+    { name: "맹우재 지힐링스퀘어의원", lat: 37.51685, lng: 127.02214, pin: "🩺" },
+    { name: "진옥현 강남연세우노비뇨기과의원", lat: 37.49860, lng: 127.03087, pin: "🩺" },
+    { name: "송정환 연세코앤이비인후과의원", lat: 37.49981, lng: 127.02718, pin: "🩺" },
+    { name: "노복균 에스원성형외과의원", lat: 37.52499, lng: 127.02719, pin: "🩺" },
+    { name: "박현수 박소아청소년과의원", lat: 37.48499, lng: 127.08782, pin: "🩺" },
+    { name: "권장덕 권장덕K성형외과의원", lat: 37.52536, lng: 127.02812, pin: "🩺" },
+    { name: "심동석 심동석신경과의원", lat: 37.52738, lng: 127.02940, pin: "🩺" },
+    { name: "최주현·구형진 눈에미소안과의원", lat: 37.49555, lng: 127.02929, pin: "🩺" },
+    { name: "김유석 강남연세이비인후과의원", lat: 37.51769, lng: 127.04077, pin: "🩺" },
+    { name: "한재욱 서울포레스트정신건강의학과의원", lat: 37.52302, lng: 127.04220, pin: "🩺" },
+    { name: "조원영 강남지인병원", lat: 37.51279, lng: 127.03505, pin: "🏥" },
+    { name: "이상우 이상피부과의원", lat: 37.48905, lng: 127.06719, pin: "🩺" },
+    { name: "박준규 슈어스성형외과의원", lat: 37.49895, lng: 127.02765, pin: "🩺" },
+    { name: "송용섭 서울강남재활의학과의원", lat: 37.49585, lng: 127.05275, pin: "🩺" },
+    { name: "방숙현 DR피부과의원", lat: 37.52293, lng: 127.03986, pin: "🩺" },
+    { name: "양준상 양준상의원", lat: 37.52336, lng: 127.03838, pin: "🩺" },
+    { name: "이성렬 담소유병원", lat: 37.51487, lng: 127.03463, pin: "🏥" },
+    { name: "이정엽 압구정현대이비인후과의원", lat: 37.52857, lng: 127.03216, pin: "🩺" },
+    { name: "홍성수 비에비스나무병원", lat: 37.50957, lng: 127.03241, pin: "🏥" },
+    { name: "고홍기 굿모닝라이프소아청소년과의원", lat: 37.51614, lng: 127.03967, pin: "🩺" },
+    { name: "양혁재 메드렉스병원", lat: 37.51490, lng: 127.02998, pin: "🏥" },
+    { name: "유민재 닥터스피부과의원 신사점", lat: 37.51678, lng: 127.02011, pin: "🩺" },
+    { name: "강형근 더비비성형외과의원", lat: 37.49877, lng: 127.02779, pin: "🩺" },
+    { name: "반재용 바노바기피부과의원", lat: 37.50823, lng: 127.03604, pin: "🩺" },
+    { name: "정선화 두번째봄여성의원", lat: 37.52796, lng: 127.03134, pin: "🩺" },
+    { name: "이형교 역삼의원", lat: 37.49357, lng: 127.04227, pin: "🩺" },
+    { name: "김준헌 강남조은눈안과", lat: 37.49869, lng: 127.02877, pin: "🩺" }
+  ];
+
+  function haversine(la1,lo1,la2,lo2){var R=6371000,t=Math.PI/180,dLa=(la2-la1)*t,dLo=(lo2-lo1)*t;var a=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(la1*t)*Math.cos(la2*t)*Math.sin(dLo/2)*Math.sin(dLo/2);return 2*R*Math.asin(Math.sqrt(a));}
+  function bearingDeg(la1,lo1,la2,lo2){var t=Math.PI/180,y=Math.sin((lo2-lo1)*t)*Math.cos(la2*t),x=Math.cos(la1*t)*Math.sin(la2*t)-Math.sin(la1*t)*Math.cos(la2*t)*Math.cos((lo2-lo1)*t);return (Math.atan2(y,x)*180/Math.PI+360)%360;}
+  function nn(lat,lng){var rem=LANDMARKS.slice(),r=[],cLat=lat,cLng=lng;while(rem.length){var bi=0,bd=Infinity;for(var i=0;i<rem.length;i++){var d=haversine(cLat,cLng,rem[i].lat,rem[i].lng);if(d<bd){bd=d;bi=i;}}var nx=rem.splice(bi,1)[0];r.push(nx);cLat=nx.lat;cLng=nx.lng;}return r;}
+  function seqLen(s,la,lo){var d=0,pa=la,po=lo;for(var i=0;i<s.length;i++){d+=haversine(pa,po,s[i].lat,s[i].lng);pa=s[i].lat;po=s[i].lng;}return d;}
+  function twoOpt(s,la,lo){var b=s.slice(),n=b.length,im=true,p=0;while(im&&p<40){im=false;p++;var bl=seqLen(b,la,lo);for(var i=0;i<n-1;i++)for(var k=i+1;k<n;k++){var c=b.slice(0,i).concat(b.slice(i,k+1).reverse(),b.slice(k+1));var cl=seqLen(c,la,lo);if(cl<bl-1){b=c;bl=cl;im=true;}}}return b;}
+
+  var order = [], idx = 0, pano = null, playing = false, timer = null;
+
+  function init() {
+    if (!(window.naver && naver.maps && naver.maps.Panorama)) {
+      document.getElementById("loading").innerHTML = "거리뷰 모듈을 불러오지 못했습니다. (네트워크/도메인 확인)";
+      return;
+    }
+    // 강남역에서 가까운 순서로 순례 경로
+    order = twoOpt(nn(37.4979, 127.0276), 37.4979, 127.0276);
+    pano = new naver.maps.Panorama("pano", {
+      position: new naver.maps.LatLng(order[0].lat, order[0].lng),
+      pov: { pan: 0, tilt: 0, fov: 100 }, visible: true,
+      aroundControl: true, zoomControl: false
+    });
+    naver.maps.Event.addListener(pano, "init", function () {
+      document.getElementById("loading").style.display = "none";
+      var introEl = document.getElementById("intro"); introEl.classList.add("show");
+      setTimeout(function () { introEl.classList.remove("show"); }, 3400);
+      aimAtTarget();
+      // 잠시 후 자동 순례 시작
+      setTimeout(function () { setPlaying(true); }, 3600);
+    });
+    naver.maps.Event.addListener(pano, "pano_changed", aimAtTarget);
+    showAt(0);
+    setTimeout(function(){ document.getElementById("loading").style.display="none"; }, 6000); // 안전장치
+  }
+
+  // 파노라마가 대상 병원을 바라보도록 시점 회전
+  function aimAtTarget() {
+    if (!pano || !order[idx]) return;
+    var pos = pano.getPosition && pano.getPosition();
+    var t = order[idx];
+    if (pos) {
+      var pan = bearingDeg(pos.lat(), pos.lng(), t.lat, t.lng);
+      try { pano.setPov({ pan: pan, tilt: 4, fov: 100 }); } catch (e) {}
+    }
+  }
+
+  function showAt(i) {
+    idx = (i + order.length) % order.length;
+    var t = order[idx];
+    document.getElementById("prog").textContent = (idx + 1) + "/" + order.length;
+    document.getElementById("name").textContent = t.name;
+    var msg = document.getElementById("msg"); msg.style.display = "none";
+    if (pano) {
+      pano.setPosition(new naver.maps.LatLng(t.lat, t.lng));
+      setTimeout(aimAtTarget, 400);
+    }
+  }
+  function go(d) { showAt(idx + d); }
+  function setPlaying(p) {
+    playing = p;
+    document.getElementById("play").textContent = p ? "⏸ 정지" : "⏯ 자동";
+    if (timer) clearInterval(timer);
+    if (p) timer = setInterval(function () {
+      if (idx + 1 >= order.length) { setPlaying(false); return; } // 끝에서 정지
+      go(1);
+    }, 6000);
+  }
+
+  document.getElementById("prev").addEventListener("click", function () { go(-1); });
+  document.getElementById("next").addEventListener("click", function () { go(1); });
+  document.getElementById("play").addEventListener("click", function () { setPlaying(!playing); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1);
+    else if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+  });
+
+  if (window.naver && naver.maps) init();
+  else window.addEventListener("load", init);
+  </script>
+</body>
+</html>
