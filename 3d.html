@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>강남 포토리얼 3D 드라이브 🏎️</title>
+<link href="https://unpkg.com/cesium@1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc0ee;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+  #cesiumContainer { position: absolute; inset: 0; }
+  .cesium-widget-credits, .cesium-viewer-bottom { font-size: 10px; }
+
+  #car { position: absolute; left: 50%; top: 72%; width: 50px; height: 83px; z-index: 100;
+    pointer-events: none; transform-origin: 50% 50%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); display: none; }
+
+  #hud { position: absolute; left: 16px; bottom: 32px; z-index: 101;
+    background: rgba(20,20,28,.78); color: #fff; border-radius: 14px; padding: 14px 18px;
+    backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0,0,0,.35); min-width: 150px; }
+  #hud .spd { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
+  #hud .spd small { font-size: 14px; font-weight: 500; opacity: .7; margin-left: 4px; }
+  #hud .dist { font-size: 13px; opacity: .8; margin-top: 4px; }
+  #gauge { height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); margin-top: 10px; overflow: hidden; }
+  #gauge > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#4ade80,#facc15,#ef4444); transition: width .1s; }
+
+  #help { position: absolute; right: 16px; top: 16px; z-index: 101; background: rgba(20,20,28,.78); color: #fff;
+    border-radius: 14px; padding: 12px 16px; font-size: 13px; line-height: 1.7; backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+  #help b { color: #8ab4ff; }
+  kbd { background: #333; border-radius: 5px; padding: 1px 7px; border: 1px solid #555; font-family: monospace; }
+
+  #warn { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 200; background: #b91c1c; color: #fff;
+    padding: 10px 18px; border-radius: 12px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; max-width: 90%; text-align: center; }
+  #warn b { background: rgba(0,0,0,.25); padding: 1px 5px; border-radius: 4px; }
+
+  #course { position: absolute; left: 50%; top: 72px; transform: translateX(-50%); z-index: 101; display: flex; gap: 8px; align-items: center; max-width: 92vw; }
+  #courseBtn { border: none; cursor: pointer; background: #2b6cff; color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.35); white-space: nowrap; }
+  #courseInfo { display: none; gap: 9px; align-items: center; white-space: nowrap; overflow: hidden; background: rgba(20,20,28,.85); color: #fff; font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 11px; backdrop-filter: blur(8px); }
+  #courseInfo b { color: #8ab4ff; }
+  #courseArrow { display: inline-block; font-size: 17px; color: #4ade80; transition: transform .12s linear; }
+
+  #intro { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 250; background: rgba(20,22,32,.92);
+    color: #fff; padding: 20px 28px; border-radius: 16px; font-size: 19px; font-weight: 700; text-align: center; box-shadow: 0 12px 44px rgba(0,0,0,.5); pointer-events: none; opacity: 0; }
+  #intro.show { animation: introFade 3.4s ease forwards; }
+  @keyframes introFade { 0%{opacity:0;transform:translate(-50%,-42%) scale(.92);} 12%{opacity:1;transform:translate(-50%,-50%) scale(1);} 82%{opacity:1;} 100%{opacity:0;} }
+
+  #arrival { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); z-index: 240; background: rgba(21,128,61,.94);
+    color: #fff; padding: 15px 26px; border-radius: 14px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.5); pointer-events: none; opacity: 0; max-width: 86%; }
+  #arrival .t1 { font-size: 13px; opacity: .85; letter-spacing: 1px; }
+  #arrival .t2 { font-size: 19px; font-weight: 800; margin-top: 3px; line-height: 1.35; }
+  #arrival.show { animation: arrFade 2.2s ease forwards; }
+  @keyframes arrFade { 0%{opacity:0;transform:translate(-50%,-44%) scale(.9);} 14%{opacity:1;transform:translate(-50%,-50%) scale(1);} 74%{opacity:1;} 100%{opacity:0;} }
+
+  #finish { position: absolute; inset: 0; z-index: 300; display: none; align-items: center; justify-content: center; background: rgba(8,10,20,.6); backdrop-filter: blur(4px); }
+  #finish.show { display: flex; }
+  #finish .card { background: rgba(24,26,36,.96); color: #fff; border-radius: 20px; padding: 30px 36px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.5); max-width: 90%; }
+  #finish .emoji { font-size: 54px; } #finish h2 { margin: 12px 0 6px; font-size: 24px; } #finish p { margin: 0 0 12px; opacity: .85; font-size: 14px; }
+  #finish .time { font-size: 15px; margin-bottom: 20px; } #finish .time b { color: #4ade80; font-size: 26px; }
+  #finish button { border: none; border-radius: 12px; padding: 11px 24px; font-size: 15px; font-weight: 700; cursor: pointer; background: #2b6cff; color: #fff; }
+
+  #maker { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 102; font-size: 20px; font-weight: 700; color: #fff;
+    white-space: nowrap; background: rgba(20,20,28,.6); padding: 8px 18px; border-radius: 12px; backdrop-filter: blur(6px); text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+  #maker a { color: #8ab4ff; text-decoration: none; font-weight: 800; } #maker a:hover { text-decoration: underline; }
+
+  #loading { position: absolute; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+    background: #0b1020; color: #fff; font-size: 16px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+
+  <svg id="car" viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9e0014"/><stop offset=".5" stop-color="#ff4040"/><stop offset="1" stop-color="#9e0014"/></linearGradient>
+      <radialGradient id="hlGrad" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#cfe3ff"/><stop offset="1" stop-color="#8aa0b8"/></radialGradient>
+    </defs>
+    <g fill="#0e0e12"><rect x="4" y="24" width="9" height="18" rx="3"/><rect x="47" y="24" width="9" height="18" rx="3"/><rect x="2" y="62" width="12" height="22" rx="3.5"/><rect x="46" y="62" width="12" height="22" rx="3.5"/></g>
+    <path d="M30 5 C40 5 46 12 48 24 C50 34 51 44 51.5 56 C52 68 50 80 45 89 C41 95 35 97 30 97 C25 97 19 95 15 89 C10 80 8 68 8.5 56 C9 44 10 34 12 24 C14 12 20 5 30 5 Z" fill="url(#bodyGrad)" stroke="#7a0010" stroke-width="1"/>
+    <path d="M30 9 C37 9 42 15 44 25 C45 46 45.5 58 39 87 C36 92 30 94 30 94 C24 92 21 87 15 58 C15 35 23 9 30 9 Z" fill="#fff" opacity=".16"/>
+    <circle cx="17" cy="17" r="5" fill="#1b1b21"/><circle cx="17" cy="17" r="3.6" fill="url(#hlGrad)"/><circle cx="43" cy="17" r="5" fill="#1b1b21"/><circle cx="43" cy="17" r="3.6" fill="url(#hlGrad)"/>
+    <path d="M22 34 C26 32 34 32 38 34 C39.5 41 39.5 52 37.5 60.5 C34.5 63.5 25.5 63.5 22.5 60.5 C20.5 52 20.5 41 22 34 Z" fill="#1b1b1f"/>
+    <rect x="23.4" y="41" width="6.3" height="13" rx="3" fill="#3a3a42"/><rect x="30.3" y="41" width="6.3" height="13" rx="3" fill="#3a3a42"/>
+    <rect x="16" y="90" width="28" height="3" rx="1.5" fill="#ff2a2a"/>
+  </svg>
+
+  <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">주행거리 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
+  <div id="help">🏎️ <b>강남 포토리얼 3D</b><br /><kbd>↑</kbd>가속 <kbd>↓</kbd>브레이크 <kbd>←</kbd><kbd>→</kbd>핸들<br /><span style="opacity:.7">코스 시작 시 자동주행</span></div>
+  <div id="warn"></div>
+  <div id="intro">🚗 강남구 의사회 임원 병원 순례를 시작하겠습니다.</div>
+  <div id="arrival"></div>
+  <div id="course"><button id="courseBtn">🏁 임원순회 코스 시작</button>
+    <div id="courseInfo"><span id="courseProg">0/0</span> · ⏱ <span id="courseTime">00:00</span> · <span id="courseArrow">↑</span> <span id="courseNext">—</span> <span id="courseDist"></span> <span id="courseRemain" style="opacity:.75"></span></div></div>
+  <div id="finish"><div class="card"><div class="emoji">🎉</div><h2>완주 축하합니다!</h2><p>강남구의사회 임원 <b id="finishCount">27</b>곳을 모두 방문했습니다.</p><div class="time">소요 시간 <b id="finishTime">00:00</b></div><button id="finishBtn">다시 달리기</button></div></div>
+  <div id="maker">제작자 <a href="https://neoskepticmd.substack.com" target="_blank" rel="noopener noreferrer">Neoskepticmd.substack.com</a></div>
+  <div id="loading">🌏 강남 3D 도시를 불러오는 중…<br><small style="opacity:.7">(Google Photorealistic 3D Tiles)</small></div>
+
+  <script>
+    // ⚠️ 발급한 Google API 키를 여기에 넣으세요 (Map Tiles API 사용설정 + HTTP 리퍼러 제한 필수)
+    window.GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY";
+    window.CESIUM_BASE_URL = "https://unpkg.com/cesium@1.124/Build/Cesium/";
+  </script>
+  <script src="https://unpkg.com/cesium@1.124/Build/Cesium/Cesium.js"></script>
+  <script>
+  // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
+  var GANGNAM = { lat: 37.4979, lng: 127.0276 };
+  var AUTO_CRUISE = 83.3, ARRIVE_RADIUS = 100;
+  var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
+  // 추격 카메라 파라미터 (미터)
+  var CAM_BACK = 18, CAM_UP = 8, CAM_PITCH = -10;
+
+  var LANDMARKS = [
+    { name: "맹우재 지힐링스퀘어의원", lat: 37.51685, lng: 127.02214, pin: "🩺" },
+    { name: "진옥현 강남연세우노비뇨기과의원", lat: 37.49860, lng: 127.03087, pin: "🩺" },
+    { name: "송정환 연세코앤이비인후과의원", lat: 37.49981, lng: 127.02718, pin: "🩺" },
+    { name: "노복균 에스원성형외과의원", lat: 37.52499, lng: 127.02719, pin: "🩺" },
+    { name: "박현수 박소아청소년과의원", lat: 37.48499, lng: 127.08782, pin: "🩺" },
+    { name: "권장덕 권장덕K성형외과의원", lat: 37.52536, lng: 127.02812, pin: "🩺" },
+    { name: "심동석 심동석신경과의원", lat: 37.52738, lng: 127.02940, pin: "🩺" },
+    { name: "최주현·구형진 눈에미소안과의원", lat: 37.49555, lng: 127.02929, pin: "🩺" },
+    { name: "김유석 강남연세이비인후과의원", lat: 37.51769, lng: 127.04077, pin: "🩺" },
+    { name: "한재욱 서울포레스트정신건강의학과의원", lat: 37.52302, lng: 127.04220, pin: "🩺" },
+    { name: "조원영 강남지인병원", lat: 37.51279, lng: 127.03505, pin: "🏥" },
+    { name: "이상우 이상피부과의원", lat: 37.48905, lng: 127.06719, pin: "🩺" },
+    { name: "박준규 슈어스성형외과의원", lat: 37.49895, lng: 127.02765, pin: "🩺" },
+    { name: "송용섭 서울강남재활의학과의원", lat: 37.49585, lng: 127.05275, pin: "🩺" },
+    { name: "방숙현 DR피부과의원", lat: 37.52293, lng: 127.03986, pin: "🩺" },
+    { name: "양준상 양준상의원", lat: 37.52336, lng: 127.03838, pin: "🩺" },
+    { name: "이성렬 담소유병원", lat: 37.51487, lng: 127.03463, pin: "🏥" },
+    { name: "이정엽 압구정현대이비인후과의원", lat: 37.52857, lng: 127.03216, pin: "🩺" },
+    { name: "홍성수 비에비스나무병원", lat: 37.50957, lng: 127.03241, pin: "🏥" },
+    { name: "고홍기 굿모닝라이프소아청소년과의원", lat: 37.51614, lng: 127.03967, pin: "🩺" },
+    { name: "양혁재 메드렉스병원", lat: 37.51490, lng: 127.02998, pin: "🏥" },
+    { name: "유민재 닥터스피부과의원 신사점", lat: 37.51678, lng: 127.02011, pin: "🩺" },
+    { name: "강형근 더비비성형외과의원", lat: 37.49877, lng: 127.02779, pin: "🩺" },
+    { name: "반재용 바노바기피부과의원", lat: 37.50823, lng: 127.03604, pin: "🩺" },
+    { name: "정선화 두번째봄여성의원", lat: 37.52796, lng: 127.03134, pin: "🩺" },
+    { name: "이형교 역삼의원", lat: 37.49357, lng: 127.04227, pin: "🩺" },
+    { name: "김준헌 강남조은눈안과", lat: 37.49869, lng: 127.02878, pin: "🩺" }
+  ];
+
+  var state = { lat: GANGNAM.lat, lng: GANGNAM.lng, heading: 0, speed: 0, dist: 0 };
+  var keys = {}, carEl = document.getElementById("car");
+  carEl.style.transform = "translate(-50%, -50%) perspective(800px) rotateX(55deg)";
+
+  var warnTimer = null;
+  function showWarn(msg, color, persist) {
+    var w = document.getElementById("warn"); w.style.display = "block";
+    if (color) w.style.background = color; w.innerHTML = msg;
+    if (warnTimer) clearTimeout(warnTimer);
+    if (!persist) warnTimer = setTimeout(function(){ w.style.display = "none"; }, 3500);
+  }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  document.addEventListener("keydown", function(e){ keys[e.code]=true; if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].indexOf(e.code)>=0) e.preventDefault(); });
+  document.addEventListener("keyup", function(e){ keys[e.code]=false; });
+  function m2ll(dN,dE,lat){ return { dLat:dN/111320, dLng:dE/(111320*Math.cos(lat*Math.PI/180)) }; }
+  function haversine(la1,lo1,la2,lo2){ var R=6371000,t=Math.PI/180,dLa=(la2-la1)*t,dLo=(lo2-lo1)*t; var a=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(la1*t)*Math.cos(la2*t)*Math.sin(dLo/2)*Math.sin(dLo/2); return 2*R*Math.asin(Math.sqrt(a)); }
+  function bearingDeg(la1,lo1,la2,lo2){ var t=Math.PI/180,y=Math.sin((lo2-lo1)*t)*Math.cos(la2*t),x=Math.cos(la1*t)*Math.sin(la2*t)-Math.sin(la1*t)*Math.cos(la2*t)*Math.cos((lo2-lo1)*t); return (Math.atan2(y,x)*180/Math.PI+360)%360; }
+  function fmtTime(ms){ var s=Math.floor(ms/1000); return (""+Math.floor(s/60)).padStart(2,"0")+":"+(""+(s%60)).padStart(2,"0"); }
+
+  // ── Cesium 초기화 ──
+  var viewer, scene, tileset, routeEntity = null, lastGround = 30, ready = false;
+  (async function init(){
+    if (window.GOOGLE_API_KEY === "YOUR_GOOGLE_API_KEY") {
+      document.getElementById("loading").innerHTML = "🔑 Google API 키가 설정되지 않았습니다.<br><small>3d.html 의 GOOGLE_API_KEY 를 발급키로 교체하세요.</small>";
+      return;
+    }
+    try {
+      viewer = new Cesium.Viewer("cesiumContainer", {
+        baseLayer: false, globe: false, baseLayerPicker: false, geocoder: false, homeButton: false,
+        sceneModePicker: false, navigationHelpButton: false, animation: false, timeline: false,
+        fullscreenButton: false, selectionIndicator: false, infoBox: false, requestRenderMode: false
+      });
+      scene = viewer.scene;
+      scene.skyAtmosphere.show = true;
+      scene.screenSpaceCameraController.enableInputs = false; // 우리가 직접 운전
+      viewer.cesiumWidget.creditContainer.style.display = "none";
+
+      Cesium.GoogleMaps.defaultApiKey = window.GOOGLE_API_KEY;
+      tileset = await Cesium.createGooglePhotorealistic3DTileset();
+      scene.primitives.add(tileset);
+
+      LANDMARKS.forEach(addEntity);
+      document.getElementById("loading").style.display = "none";
+      ready = true;
+      requestAnimationFrame(tick);
+
+      var introEl = document.getElementById("intro");
+      introEl.classList.add("show");
+      setTimeout(function(){ introEl.classList.remove("show"); }, 3400);
+      startCourse();
+    } catch (e) {
+      document.getElementById("loading").innerHTML = "❌ 3D 타일 로드 실패: " + esc(e.message || String(e)) +
+        "<br><small>키 제한(리퍼러/Map Tiles API)·결제 활성화를 확인하세요.</small>";
+    }
+  })();
+
+  // ── 랜드마크 (Cesium 엔티티) ──
+  function addEntity(item){
+    item.entity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(item.lng, item.lat, lastGround + 2),
+      point: { pixelSize: 9, color: Cesium.Color.fromCssColorString("#2b6cff"), outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      label: { text: item.pin + " " + item.name, font: "700 13px sans-serif", fillColor: Cesium.Color.WHITE,
+        showBackground: true, backgroundColor: Cesium.Color.fromCssColorString("rgba(20,20,28,0.82)"),
+        backgroundPadding: new Cesium.Cartesian2(7,4), pixelOffset: new Cesium.Cartesian2(0,-16),
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scaleByDistance: new Cesium.NearFarScalar(200, 1.0, 3000, 0.5) }
+    });
+  }
+  function refreshEntity(item){
+    if (!item.entity) return;
+    item.entity.label.text = (item.visited ? "✅ " : item.pin + " ") + item.name;
+    item.entity.label.fillColor = item.visited ? Cesium.Color.fromCssColorString("#9fe0b5") : Cesium.Color.WHITE;
+    item.entity.point.color = item.visited ? Cesium.Color.fromCssColorString("#15803d") : Cesium.Color.fromCssColorString("#2b6cff");
+  }
+
+  // ── 주행 ──
+  function manualDrive(dt){
+    if (keys.ArrowUp) state.speed += ACCEL*dt; else if (keys.ArrowDown) state.speed -= BRAKE*dt;
+    else { if (state.speed>0) state.speed=Math.max(0,state.speed-FRICTION*dt); else if (state.speed<0) state.speed=Math.min(0,state.speed+FRICTION*dt); }
+    if (keys.Space) state.speed*=0.86;
+    state.speed = Math.max(MAX_REVERSE, Math.min(MAX_SPEED, state.speed));
+    var sf=Math.min(1,Math.abs(state.speed)/8), dir=state.speed>=0?1:-1;
+    if (keys.ArrowLeft) state.heading -= TURN_RATE*dt*sf*dir;
+    if (keys.ArrowRight) state.heading += TURN_RATE*dt*sf*dir;
+    var rad=state.heading*Math.PI/180, d=m2ll(Math.cos(rad)*state.speed*dt, Math.sin(rad)*state.speed*dt, state.lat);
+    state.lat+=d.dLat; state.lng+=d.dLng; state.dist+=Math.abs(state.speed)*dt;
+  }
+  function autoDrive(dt){
+    var path=course.path, cum=course.cum, total=course.total;
+    if (!path || path.length<2 || !total) return;
+    var seg=course.segHint||0;
+    var dirCur=bearingDeg(path[seg][1],path[seg][0],path[seg+1][1],path[seg+1][0]);
+    var target=AUTO_CRUISE;
+    if (seg<path.length-2){
+      var dirNext=bearingDeg(path[seg+1][1],path[seg+1][0],path[seg+2][1],path[seg+2][0]);
+      var turn=Math.abs(((dirCur-dirNext+540)%360)-180), lead=Math.max(40,course.curSpeed*1.6);
+      if (turn>22 && (cum[seg+1]-course.s)<lead) target=Math.max(9,AUTO_CRUISE*(1-turn/150));
+    }
+    course.curSpeed += Math.max(-75*dt, Math.min(24*dt, target-course.curSpeed));
+    course.s = Math.min(total, course.s + course.curSpeed*dt);
+    while (seg<cum.length-2 && cum[seg+1]<course.s) seg++;
+    course.segHint=seg;
+    var segLen=cum[seg+1]-cum[seg], f=segLen>0?(course.s-cum[seg])/segLen:0, a=path[seg], b=path[seg+1];
+    state.lng=a[0]+(b[0]-a[0])*f; state.lat=a[1]+(b[1]-a[1])*f;
+    var tgtH=bearingDeg(a[1],a[0],b[1],b[0]), diff=((tgtH-state.heading+540)%360)-180;
+    state.heading += diff*(1-Math.exp(-5*dt));
+    state.speed=course.curSpeed; state.dist+=course.curSpeed*dt;
+  }
+  function setCoursePath(coords){
+    course.path=coords; var cum=[0];
+    for (var i=1;i<coords.length;i++) cum[i]=cum[i-1]+haversine(coords[i-1][1],coords[i-1][0],coords[i][1],coords[i][0]);
+    course.cum=cum; course.total=cum[cum.length-1]||0; course.s=0; course.curSpeed=0; course.segHint=0;
+  }
+
+  // ── 카메라 + 차 스프라이트 (매 프레임) ──
+  function renderFrame(){
+    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, lastGround);
+    // 지면 높이 샘플 (3D 타일)
+    if (scene.sampleHeight) {
+      var h = scene.sampleHeight(Cesium.Cartographic.fromDegrees(state.lng, state.lat));
+      if (h !== undefined && !isNaN(h)) { lastGround = h; carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, h); }
+    }
+    // 차 뒤·위에서 바라보는 추격 카메라
+    var headRad = Cesium.Math.toRadians(state.heading);
+    var enu = Cesium.Transforms.eastNorthUpToFixedFrame(carPos);
+    var e = -Math.sin(headRad)*CAM_BACK, n = -Math.cos(headRad)*CAM_BACK, u = CAM_UP;
+    var camPos = Cesium.Matrix4.multiplyByPoint(enu, new Cesium.Cartesian3(e, n, u), new Cesium.Cartesian3());
+    viewer.camera.setView({ destination: camPos, orientation: { heading: headRad, pitch: Cesium.Math.toRadians(CAM_PITCH), roll: 0 } });
+    // 차 SVG를 실제 차 위치에 투영
+    var win = Cesium.SceneTransforms.worldToWindowCoordinates(scene, carPos);
+    if (win) { carEl.style.left = win.x + "px"; carEl.style.top = win.y + "px"; carEl.style.display = "block"; }
+    else carEl.style.display = "none";
+  }
+
+  // ── 게임 루프 ──
+  var lastT = 0;
+  function tick(t){
+    var dt = lastT ? Math.min((t-lastT)/1000, 0.05) : 0; lastT = t;
+    if (course.active) { if (course.path) autoDrive(dt); } else manualDrive(dt);
+    renderFrame();
+    updateCourse(t);
+    document.getElementById("spd").textContent = Math.round(Math.abs(state.speed)*3.6);
+    document.getElementById("dist").textContent = (state.dist/1000).toFixed(2);
+    document.querySelector("#gauge > i").style.width = (Math.abs(state.speed)/MAX_SPEED*100) + "%";
+    requestAnimationFrame(tick);
+  }
+
+  // ── 코스 ──
+  var course = { active:false, order:[], done:0, startT:null, path:null, cum:null, total:0, s:0, curSpeed:0, segHint:0 };
+  function nearestNeighbor(lat,lng){ var rem=LANDMARKS.slice(),r=[],cLat=lat,cLng=lng; while(rem.length){var bi=0,bd=Infinity;for(var i=0;i<rem.length;i++){var d=haversine(cLat,cLng,rem[i].lat,rem[i].lng);if(d<bd){bd=d;bi=i;}}var nx=rem.splice(bi,1)[0];r.push(nx);cLat=nx.lat;cLng=nx.lng;}return r; }
+  function seqLength(seq,sLat,sLng){ var d=0,pLat=sLat,pLng=sLng; for(var i=0;i<seq.length;i++){d+=haversine(pLat,pLng,seq[i].lat,seq[i].lng);pLat=seq[i].lat;pLng=seq[i].lng;} return d; }
+  function twoOpt(seq,sLat,sLng){ var best=seq.slice(),n=best.length,improved=true,pass=0; while(improved&&pass<40){improved=false;pass++;var bl=seqLength(best,sLat,sLng);for(var i=0;i<n-1;i++)for(var k=i+1;k<n;k++){var c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1));var cl=seqLength(c,sLat,sLng);if(cl<bl-1){best=c;bl=cl;improved=true;}}}return best; }
+  function dedupeStops(seq){ var kept=[]; seq.forEach(function(p){ if(!kept.some(function(q){return haversine(p.lat,p.lng,q.lat,q.lng)<70;})) kept.push(p); }); return kept; }
+  function buildStops(lat,lng){ return dedupeStops(twoOpt(nearestNeighbor(lat,lng),lat,lng)); }
+  function fetchRoadRoute(coords){
+    var path=coords.map(function(c){return c[0]+","+c[1];}).join(";");
+    return fetch("https://router.project-osrm.org/route/v1/driving/"+path+"?overview=full&geometries=geojson")
+      .then(function(r){return r.json();}).then(function(j){ return (j&&j.code==="Ok"&&j.routes&&j.routes.length)?j.routes[0]:null; }).catch(function(){return null;});
+  }
+  function setRoute(coords){
+    if (routeEntity) viewer.entities.remove(routeEntity);
+    if (!coords.length) { routeEntity=null; return; }
+    var flat=[]; coords.forEach(function(c){ flat.push(c[0],c[1]); });
+    routeEntity = viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat),
+      width: 6, clampToGround: true, material: Cesium.Color.fromCssColorString("#2b6cff").withAlpha(0.85) } });
+  }
+  function startCourse(){
+    LANDMARKS.forEach(function(p){ if(p.visited){p.visited=false;refreshEntity(p);} });
+    course.order=buildStops(state.lat,state.lng); course.done=0; course.startT=null; course.active=true; course.path=null;
+    var coords=[[state.lng,state.lat]]; course.order.forEach(function(p){coords.push([p.lng,p.lat]);});
+    setRoute(coords);
+    document.getElementById("courseBtn").textContent="■ 코스 중단"; document.getElementById("courseInfo").style.display="flex";
+    showWarn("🧭 도로 경로 계산 중…", "#2b6cff");
+    fetchRoadRoute(coords).then(function(route){ if(!course.active)return;
+      if(route){ setRoute(route.geometry.coordinates); setCoursePath(route.geometry.coordinates); showWarn("🧭 자동주행 시작 — 27곳 순례","#15803d"); }
+      else { setCoursePath(coords); showWarn("⚠️ 도로 경로 서버 응답 없음 — 직선으로 자동주행"); } });
+    updateCourse(0);
+  }
+  function stopCourse(){ course.active=false; course.path=null; state.speed=0; setRoute([]); document.getElementById("courseBtn").textContent="🏁 임원순회 코스 시작"; document.getElementById("courseInfo").style.display="none"; }
+  function finishCourse(t){
+    var total=fmtTime((t&&course.startT)?(t-course.startT):0); course.active=false; course.path=null; state.speed=0; setRoute([]);
+    document.getElementById("courseProg").textContent=LANDMARKS.length+"/"+LANDMARKS.length; document.getElementById("courseInfo").style.display="none";
+    document.getElementById("courseBtn").textContent="🏁 임원순회 코스 시작";
+    document.getElementById("finishCount").textContent=LANDMARKS.length; document.getElementById("finishTime").textContent=total;
+    document.getElementById("finish").classList.add("show");
+  }
+  var arrivalTimer=null;
+  function showArrival(names){ var el=document.getElementById("arrival"); el.innerHTML='<div class="t1">🏥 도착</div><div class="t2">'+names.map(esc).join("<br>")+"</div>"; el.classList.remove("show"); void el.offsetWidth; el.classList.add("show"); if(arrivalTimer)clearTimeout(arrivalTimer); arrivalTimer=setTimeout(function(){el.classList.remove("show");},2200); }
+  function updateCourse(t){
+    if (!course.active) return; if (course.startT===null && t) course.startT=t;
+    var next=null,nd=Infinity,arrived=[];
+    for (var i=0;i<LANDMARKS.length;i++){ var p=LANDMARKS[i], d=haversine(state.lat,state.lng,p.lat,p.lng);
+      if (!p.visited && d<ARRIVE_RADIUS){ p.visited=true; refreshEntity(p); course.done++; arrived.push(p.name); continue; }
+      if (!p.visited && d<nd){ nd=d; next=p; } }
+    if (arrived.length) showArrival(arrived);
+    if (course.done>=LANDMARKS.length){ finishCourse(t); return; }
+    if (course.path && course.total && course.s>=course.total-0.5){ finishCourse(t); return; }
+    document.getElementById("courseProg").textContent=course.done+"/"+LANDMARKS.length;
+    document.getElementById("courseTime").textContent=fmtTime((t&&course.startT)?(t-course.startT):0);
+    if (next){ document.getElementById("courseNext").innerHTML="<b>"+esc(next.name)+"</b>";
+      document.getElementById("courseDist").textContent=nd>=1000?(nd/1000).toFixed(2)+"km":Math.round(nd)+"m";
+      document.getElementById("courseArrow").style.transform="rotate("+(bearingDeg(state.lat,state.lng,next.lat,next.lng)-state.heading)+"deg)"; }
+    var remEl=document.getElementById("courseRemain");
+    if (course.path && course.total){ var road=Math.max(0,course.total-course.s); remEl.textContent="· 남은 "+(road/1000).toFixed(1)+"km · 약 "+Math.max(1,Math.round(road/AUTO_CRUISE/60))+"분"; } else remEl.textContent="";
+  }
+
+  document.getElementById("courseBtn").addEventListener("click", function(){ if(!ready)return; if(course.active)stopCourse(); else startCourse(); this.blur(); });
+  document.getElementById("finishBtn").addEventListener("click", function(){ document.getElementById("finish").classList.remove("show"); startCourse(); });
+  </script>
+</body>
+</html>
