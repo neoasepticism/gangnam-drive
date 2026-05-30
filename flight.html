@@ -100,11 +100,11 @@
   <script>
   // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
   var GANGNAM = { lat: 37.4979, lng: 127.0276 };
-  var AUTO_CRUISE = 50, ARRIVE_RADIUS = 150;
+  var AUTO_CRUISE = 42, ARRIVE_RADIUS = 150;
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
-  var CAM_BACK = 65, CAM_UP = 45, CAM_PITCH = -28;
-  var FLIGHT_ALT = 130; // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
+  var CAM_BACK = 55, CAM_UP = 38, CAM_PITCH = -28;
+  var JET_OFFSET = 20; // 지면/옥상 위 비행 높이(m) — 가까울수록 또렷 // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "맹우재 지힐링스퀘어의원", lat: 37.51685, lng: 127.02214, pin: "🩺" },
@@ -252,8 +252,9 @@
 
   // ── 카메라 + 차 스프라이트 (매 프레임) ──
   function renderFrame(){
-    // 일정한 절대 고도로 평탄 비행 (건물 위를 지나도 상하로 안 튐)
-    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, FLIGHT_ALT);
+    // 지면/옥상을 낮게 추종(드론뷰처럼 가까워 또렷). 부드럽게 따라가 상하 튐 방지
+    if (scene.sampleHeight) { var gh = scene.sampleHeight(Cesium.Cartographic.fromDegrees(state.lng, state.lat)); if (gh !== undefined && !isNaN(gh)) lastGround += (gh - lastGround) * 0.08; }
+    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, lastGround + JET_OFFSET);
     // 차 뒤·위에서 바라보는 추격 카메라
     var headRad = Cesium.Math.toRadians(state.heading);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(carPos);
