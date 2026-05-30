@@ -7,7 +7,7 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020;
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
-  #pano { position: absolute; inset: 0; background: #0b1020; }
+  #pano { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b1020; }
 
   #topbar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); z-index: 20;
     background: rgba(20,20,28,.82); color: #fff; border-radius: 14px; padding: 11px 20px; backdrop-filter: blur(8px);
@@ -91,7 +91,7 @@
       });
     } catch (e) { dbg("Panorama 생성 예외: " + e.message); return; }
 
-    naver.maps.Event.addListener(pano, "init", function(){ dbg("init OK — 거리뷰 로드됨"); hideLoading(); aimAtTarget(); /* 디버그중 자동순례 비활성 */ });
+    naver.maps.Event.addListener(pano, "init", function(){ dbg("init OK — 거리뷰 로드됨"); hideLoading(); aimAtTarget(); setTimeout(function(){ setPlaying(true); }, 3000); });
     naver.maps.Event.addListener(pano, "pano_changed", function(){ var id = pano.getPanoId ? pano.getPanoId() : "?"; dbg("pano_changed id=" + id); hideLoading(); aimAtTarget(); });
     naver.maps.Event.addListener(pano, "pano_status", function(s){ dbg("pano_status=" + (typeof s==="object"?JSON.stringify(s):s)); });
     // 캔버스 크기 갱신 (검은화면 방지)
