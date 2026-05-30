@@ -100,11 +100,11 @@
   <script>
   // ════════ 강남 포토리얼 3D 드라이브 (CesiumJS + Google 3D Tiles) ════════
   var GANGNAM = { lat: 35.6812, lng: 139.7671 }; // 도쿄역
-  var AUTO_CRUISE = 60, ARRIVE_RADIUS = 170;
+  var AUTO_CRUISE = 48, ARRIVE_RADIUS = 170;
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
-  var CAM_BACK = 100, CAM_UP = 75, CAM_PITCH = -30;
-  var FLIGHT_ALT = 240; // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
+  var CAM_BACK = 55, CAM_UP = 40, CAM_PITCH = -28;
+  var JET_OFFSET = 32; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "도쿄타워", lat: 35.65858, lng: 139.74543, pin: "🗼" },
@@ -226,7 +226,7 @@
     var segLen=cum[seg+1]-cum[seg], f=segLen>0?(course.s-cum[seg])/segLen:0, a=path[seg], b=path[seg+1];
     state.lng=a[0]+(b[0]-a[0])*f; state.lat=a[1]+(b[1]-a[1])*f;
     var tgtH=bearingDeg(a[1],a[0],b[1],b[0]), diff=((tgtH-state.heading+540)%360)-180;
-    state.heading += diff*(1-Math.exp(-5*dt));
+    state.heading = tgtH; // 곡선 경로 접선 즉시 추종
     state.speed=course.curSpeed; state.dist+=course.curSpeed*dt;
   }
   function setCoursePath(coords){
@@ -237,8 +237,9 @@
 
   // ── 카메라 + 차 스프라이트 (매 프레임) ──
   function renderFrame(){
-    // 일정한 절대 고도로 평탄 비행 (건물 위를 지나도 상하로 안 튐)
-    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, FLIGHT_ALT);
+    // 지면/옥상을 낮게 추종(가까워 또렷). 부드럽게 따라가 상하 튐 방지
+    if (scene.sampleHeight) { var gh = scene.sampleHeight(Cesium.Cartographic.fromDegrees(state.lng, state.lat)); if (gh !== undefined && !isNaN(gh)) lastGround += (gh - lastGround) * 0.08; }
+    var carPos = Cesium.Cartesian3.fromDegrees(state.lng, state.lat, lastGround + JET_OFFSET);
     // 차 뒤·위에서 바라보는 추격 카메라
     var headRad = Cesium.Math.toRadians(state.heading);
     var enu = Cesium.Transforms.eastNorthUpToFixedFrame(carPos);
