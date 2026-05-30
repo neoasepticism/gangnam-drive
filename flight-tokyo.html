@@ -196,8 +196,8 @@
   // ── 주행 ──
   function manualDrive(dt){
     state.speed = AUTO_CRUISE;                          // 스로틀(X/Z로 조절, 유지됨)
-    if (keys.ArrowLeft) state.heading += TURN_RATE*dt;  // ← 좌선회
-    if (keys.ArrowRight) state.heading -= TURN_RATE*dt; // → 우선회
+    if (keys.ArrowLeft) state.heading -= TURN_RATE*dt;  // ← 좌선회
+    if (keys.ArrowRight) state.heading += TURN_RATE*dt; // → 우선회
     var rad=state.heading*Math.PI/180, d=m2ll(Math.cos(rad)*state.speed*dt, Math.sin(rad)*state.speed*dt, state.lat);
     state.lat+=d.dLat; state.lng+=d.dLng; state.dist+=state.speed*dt;
   }
