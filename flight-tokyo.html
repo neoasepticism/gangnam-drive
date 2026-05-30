@@ -120,7 +120,7 @@
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
   // 추격 카메라 파라미터 (미터)
   var CAM_BACK = 130, CAM_UP = 55, CAM_PITCH = -14;
-  var JET_OFFSET = 1000; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
+  var JET_OFFSET = 500; // 지면/옥상 위 비행 높이(m) // 절대 비행 고도(m) — 건물 위 일정 고도로 평탄 비행
 
   var LANDMARKS = [
     { name: "도쿄타워", lat: 35.65858, lng: 139.74543, pin: "🗼" },
@@ -318,7 +318,7 @@
   }
   function startCourse(){
     LANDMARKS.forEach(function(p){ if(p.visited){p.visited=false;refreshEntity(p);} });
-    course.order=LANDMARKS.slice().sort(function(a,b){return a.lng-b.lng;}); // 단순 서→동 스윕 course.done=0; course.startT=null; course.active=true; course.path=null;
+    course.order=LANDMARKS.slice().sort(function(a,b){return a.lng-b.lng;}); course.done=0; course.startT=null; course.active=true; course.path=null;
     var coords=[[state.lng,state.lat]]; course.order.forEach(function(p){coords.push([p.lng,p.lat]);});
     coords = smoothPath(coords, 28); // 부드러운 곡선 비행 경로
     setRoute(coords);
