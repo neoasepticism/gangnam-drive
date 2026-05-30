@@ -161,8 +161,13 @@
     else if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
   });
 
-  if (window.naver && naver.maps) init();
-  else window.addEventListener("load", init);
+  // panorama 서브모듈은 비동기 로드되므로 naver.maps.Panorama 준비될 때까지 대기
+  var _tries = 0;
+  (function whenReady(){
+    if (window.naver && naver.maps && naver.maps.Panorama) { init(); }
+    else if (_tries++ < 100) { setTimeout(whenReady, 100); }
+    else { document.getElementById("loading").innerHTML = "거리뷰 모듈을 불러오지 못했습니다.<br><small>네트워크 또는 도메인 등록(https://neoasepticism.github.io)을 확인하세요.</small>"; }
+  })();
   </script>
 </body>
 </html>
