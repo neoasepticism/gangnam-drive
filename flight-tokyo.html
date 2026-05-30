@@ -216,7 +216,7 @@
     var segLen=cum[seg+1]-cum[seg], f=segLen>0?(course.s-cum[seg])/segLen:0, a=path[seg], b=path[seg+1];
     state.lng=a[0]+(b[0]-a[0])*f; state.lat=a[1]+(b[1]-a[1])*f;
     var tgtH=bearingDeg(a[1],a[0],b[1],b[0]), diff=((tgtH-state.heading+540)%360)-180;
-    state.heading = tgtH; // 곡선 경로 접선 즉시 추종
+    state.heading += diff*(1-Math.exp(-2.6*dt)); // 비행기식 부드러운 뱅킹 선회
     state.speed=course.curSpeed; state.dist+=course.curSpeed*dt;
   }
   function setCoursePath(coords){
