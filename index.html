@@ -103,6 +103,20 @@
     100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
   }
 
+  /* 병원 도착 팝업 */
+  #arrival { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); z-index: 240;
+    background: rgba(21,128,61,.94); color: #fff; padding: 15px 26px; border-radius: 14px; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5); pointer-events: none; opacity: 0; max-width: 86%; }
+  #arrival .t1 { font-size: 13px; opacity: .85; letter-spacing: 1px; }
+  #arrival .t2 { font-size: 19px; font-weight: 800; margin-top: 3px; line-height: 1.35; }
+  #arrival.show { animation: arrFade 2.2s ease forwards; }
+  @keyframes arrFade {
+    0% { opacity: 0; transform: translate(-50%, -44%) scale(.9); }
+    14% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    74% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+
   /* 완주 축하 오버레이 */
   #finish { position: absolute; inset: 0; z-index: 300; display: none; align-items: center; justify-content: center;
     background: rgba(8,10,20,.6); backdrop-filter: blur(4px); }
@@ -191,6 +205,7 @@
 
   <div id="warn"></div>
   <div id="intro">🚗 강남구 의사회 임원 병원 순례를 시작하겠습니다.</div>
+  <div id="arrival"></div>
 
   <div id="course">
     <button id="courseBtn">🏁 임원순회 코스 시작</button>
@@ -298,6 +313,14 @@
     w.style.display = "block";
     if (color) w.style.background = color;
     w.innerHTML = msg;
+  }
+  var arrivalTimer = null;
+  function showArrival(names) {
+    var el = document.getElementById("arrival");
+    el.innerHTML = '<div class="t1">🏥 도착</div><div class="t2">' + names.map(esc).join("<br>") + "</div>";
+    el.classList.remove("show"); void el.offsetWidth; el.classList.add("show"); // 애니메이션 재시작
+    if (arrivalTimer) clearTimeout(arrivalTimer);
+    arrivalTimer = setTimeout(function () { el.classList.remove("show"); }, 2200);
   }
   function isTyping() {
     var el = document.activeElement;
@@ -666,13 +689,14 @@
     if (!course.active) return;
     if (course.startT === null && t) course.startT = t;
     // 모든 미방문 병원 중 100m 이내면 체크 (현재 목표만이 아니라 지나치는 건 다 처리)
-    var next = null, nd = Infinity;
+    var next = null, nd = Infinity, arrived = [];
     for (var i = 0; i < LANDMARKS.length; i++) {
       var p = LANDMARKS[i];
       var d = haversine(state.lat, state.lng, p.lat, p.lng);
-      if (!p.visited && d < ARRIVE_RADIUS) { p.visited = true; refreshMarker(p); course.done++; continue; }
+      if (!p.visited && d < ARRIVE_RADIUS) { p.visited = true; refreshMarker(p); course.done++; arrived.push(p.name); continue; }
       if (!p.visited && d < nd) { nd = d; next = p; }
     }
+    if (arrived.length) showArrival(arrived);   // 도착한 임원·병원 이름 팝업
     if (course.done >= LANDMARKS.length) { finishCourse(t); return; }
     if (course.path && course.total && course.s >= course.total - 0.5) { finishCourse(t); return; }
 
