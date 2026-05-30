@@ -78,7 +78,7 @@
   function bearingDeg(la1,lo1,la2,lo2){var t=Math.PI/180,y=Math.sin((lo2-lo1)*t)*Math.cos(la2*t),x=Math.cos(la1*t)*Math.sin(la2*t)-Math.sin(la1*t)*Math.cos(la2*t)*Math.cos((lo2-lo1)*t);return (Math.atan2(y,x)*180/Math.PI+360)%360;}
   function nn(lat,lng){var rem=LANDMARKS.slice(),r=[],cLat=lat,cLng=lng;while(rem.length){var bi=0,bd=Infinity;for(var i=0;i<rem.length;i++){var d=haversine(cLat,cLng,rem[i].lat,rem[i].lng);if(d<bd){bd=d;bi=i;}}var nx=rem.splice(bi,1)[0];r.push(nx);cLat=nx.lat;cLng=nx.lng;}return r;}
 
-  var order = [], idx = 0, pano = null, playing = false, timer = null;
+  var order = [], idx = 0, pano = null, playing = false, timer = null, _seq = 0;
   function hideLoading(){ var l=document.getElementById("loading"); if(l) l.style.display="none"; }
 
   function init(){
@@ -109,7 +109,21 @@
     }, 4000);
   }
   function aimAtTarget(){ if(!pano||!order[idx])return; var pos=pano.getPosition&&pano.getPosition(); var t=order[idx]; if(pos){ try{ pano.setPov({pan:bearingDeg(pos.lat(),pos.lng(),t.lat,t.lng),tilt:8,fov:115}); }catch(e){} } }
-  function showAt(i){ idx=(i+order.length)%order.length; var t=order[idx]; document.getElementById("prog").textContent=(idx+1)+"/"+order.length; document.getElementById("name").textContent=t.name; if(pano){ pano.setPosition(new naver.maps.LatLng(t.lat,t.lng)); setTimeout(aimAtTarget,500); } }
+  function fetchNearest(t){
+    return fetch("https://router.project-osrm.org/nearest/v1/driving/"+t.lng+","+t.lat)
+      .then(function(r){return r.json();})
+      .then(function(j){ if(j&&j.code==="Ok"&&j.waypoints&&j.waypoints.length){var l=j.waypoints[0].location;return {lng:l[0],lat:l[1]};} return null; })
+      .catch(function(){return null;});
+  }
+  function placePano(rp){ if(!pano)return; pano.setPosition(new naver.maps.LatLng(rp.lat, rp.lng)); setTimeout(aimAtTarget,500); }
+  function showAt(i){
+    idx=(i+order.length)%order.length; var t=order[idx]; var myseq=++_seq;
+    document.getElementById("prog").textContent=(idx+1)+"/"+order.length;
+    document.getElementById("name").textContent=t.name;
+    if(!pano) return;
+    if(t._road){ placePano(t._road); return; }
+    fetchNearest(t).then(function(rp){ t._road = rp || {lat:t.lat,lng:t.lng}; if(myseq===_seq) placePano(t._road); }); // 가장 가까운 도로 지점에서 건물 바라보기
+  }
   function go(d){ showAt(idx+d); }
   function setPlaying(p){ playing=p; document.getElementById("play").textContent=p?"⏸ 정지":"⏯ 자동"; if(timer)clearInterval(timer); if(p)timer=setInterval(function(){ if(idx+1>=order.length){setPlaying(false);return;} go(1); },6000); }
 
