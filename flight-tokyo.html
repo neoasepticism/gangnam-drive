@@ -71,7 +71,7 @@
   <img id="car" src="f15.png?v=4" alt="F-15" />
 
   <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">고도 <span id="alt">0</span> m · 주행 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
-  <div id="help">✈️ <b>도쿄 F-15 비행</b><br /><kbd>↑</kbd><kbd>↓</kbd> 고도 · <kbd>+</kbd><kbd>-</kbd> 속도<br /><span style="opacity:.7">시작 시 자동 비행</span></div>
+  <div id="help">✈️ <b>도쿄 F-15 비행</b><br /><kbd>↓</kbd>고도↑ <kbd>↑</kbd>고도↓ · <kbd>X</kbd>가속 <kbd>Z</kbd>감속 · <kbd>←</kbd><kbd>→</kbd>선회<br /><span style="opacity:.7">시작 시 자동 비행</span></div>
   <div id="warn"></div>
   <div id="intro">✈️ F-15로 도쿄 명소<br>상공 비행을 시작합니다.</div>
   <div id="arrival"></div>
@@ -126,10 +126,10 @@
   document.addEventListener("keydown", function(e){
     keys[e.code]=true;
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].indexOf(e.code)>=0) e.preventDefault();
-    if(e.code==="ArrowUp") JET_OFFSET = Math.min(2500, JET_OFFSET + 25);        // 고도 상승
-    else if(e.code==="ArrowDown") JET_OFFSET = Math.max(40, JET_OFFSET - 25);   // 고도 하강
-    if(e.code==="Equal"||e.code==="NumpadAdd"){ AUTO_CRUISE = Math.min(320, AUTO_CRUISE + 8); e.preventDefault(); }   // 속도 +
-    if(e.code==="Minus"||e.code==="NumpadSubtract"){ AUTO_CRUISE = Math.max(8, AUTO_CRUISE - 8); e.preventDefault(); } // 속도 -
+    if(e.code==="ArrowDown") JET_OFFSET = Math.min(2500, JET_OFFSET + 25);        // 고도 상승
+    else if(e.code==="ArrowUp") JET_OFFSET = Math.max(40, JET_OFFSET - 25);   // 고도 하강
+    if(e.code==="KeyX") AUTO_CRUISE = Math.min(320, AUTO_CRUISE + 8);   // 속도 +
+    if(e.code==="KeyZ") AUTO_CRUISE = Math.max(8, AUTO_CRUISE - 8); if((e.code==="ArrowLeft"||e.code==="ArrowRight") && course.active) course.active=false; // 속도 -
   });
   document.addEventListener("keyup", function(e){ keys[e.code]=false; });
   function m2ll(dN,dE,lat){ return { dLat:dN/111320, dLng:dE/(111320*Math.cos(lat*Math.PI/180)) }; }
@@ -195,15 +195,11 @@
 
   // ── 주행 ──
   function manualDrive(dt){
-    if (keys.ArrowUp) state.speed += ACCEL*dt; else if (keys.ArrowDown) state.speed -= BRAKE*dt;
-    else { if (state.speed>0) state.speed=Math.max(0,state.speed-FRICTION*dt); else if (state.speed<0) state.speed=Math.min(0,state.speed+FRICTION*dt); }
-    if (keys.Space) state.speed*=0.86;
-    state.speed = Math.max(MAX_REVERSE, Math.min(MAX_SPEED, state.speed));
-    var sf=Math.min(1,Math.abs(state.speed)/8), dir=state.speed>=0?1:-1;
-    if (keys.ArrowLeft) state.heading -= TURN_RATE*dt*sf*dir;
-    if (keys.ArrowRight) state.heading += TURN_RATE*dt*sf*dir;
+    state.speed = AUTO_CRUISE;                          // 스로틀(X/Z로 조절, 유지됨)
+    if (keys.ArrowLeft) state.heading += TURN_RATE*dt;  // ← 좌선회
+    if (keys.ArrowRight) state.heading -= TURN_RATE*dt; // → 우선회
     var rad=state.heading*Math.PI/180, d=m2ll(Math.cos(rad)*state.speed*dt, Math.sin(rad)*state.speed*dt, state.lat);
-    state.lat+=d.dLat; state.lng+=d.dLng; state.dist+=Math.abs(state.speed)*dt;
+    state.lat+=d.dLat; state.lng+=d.dLng; state.dist+=state.speed*dt;
   }
   function autoDrive(dt){
     var path=course.path, cum=course.cum, total=course.total;
@@ -319,7 +315,7 @@
   var arrivalTimer=null;
   function showArrival(names){ var el=document.getElementById("arrival"); el.innerHTML='<div class="t1">🏥 도착</div><div class="t2">'+names.map(esc).join("<br>")+"</div>"; el.classList.remove("show"); void el.offsetWidth; el.classList.add("show"); if(arrivalTimer)clearTimeout(arrivalTimer); arrivalTimer=setTimeout(function(){el.classList.remove("show");},2200); }
   function updateCourse(t){
-    if (!course.active) return; if (course.startT===null && t) course.startT=t;
+    if (course.startT===null && t) course.startT=t;
     var next=null,nd=Infinity,arrived=[];
     for (var i=0;i<LANDMARKS.length;i++){ var p=LANDMARKS[i], d=haversine(state.lat,state.lng,p.lat,p.lng);
       if (!p.visited && d<ARRIVE_RADIUS){ p.visited=true; refreshEntity(p); course.done++; arrived.push(p.name); continue; }
