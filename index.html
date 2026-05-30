@@ -13,6 +13,12 @@
     background: linear-gradient(#5aa0e6 0%, #8fc0ee 45%, #c4dcf0 70%, #dfeaf4 100%); }
   .maplibregl-ctrl-attrib { font-size: 10px; }
 
+  /* 제작자 크레딧 */
+  #maker { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 102;
+    font-size: 11px; color: #fff; opacity: .85; text-shadow: 0 1px 3px rgba(0,0,0,.7); white-space: nowrap; }
+  #maker a { color: #8ab4ff; text-decoration: none; font-weight: 700; }
+  #maker a:hover { text-decoration: underline; }
+
   /* 자동차 (화면 중앙 고정, 지면 평면에 눕혀 3D) */
   #car {
     position: absolute; left: 50%; top: 72%;
@@ -206,6 +212,7 @@
   <div id="warn"></div>
   <div id="intro">🚗 강남구 의사회 임원 병원 순례를 시작하겠습니다.</div>
   <div id="arrival"></div>
+  <div id="maker">제작자 <a href="https://neoskepticmd.substack.com" target="_blank" rel="noopener noreferrer">Neoskepticmd.substack.com</a></div>
 
   <div id="course">
     <button id="courseBtn">🏁 임원순회 코스 시작</button>
