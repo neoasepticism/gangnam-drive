@@ -54,7 +54,7 @@
   #warn code, #warn b { background: rgba(0,0,0,.25); padding: 1px 5px; border-radius: 4px; }
 
   /* 코스 미션 바 */
-  #course { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 101;
+  #course { position: absolute; left: 50%; top: 72px; transform: translateX(-50%); z-index: 101;
     display: flex; gap: 8px; align-items: center; max-width: 92vw; }
   #courseBtn { border: none; cursor: pointer; background: #2b6cff; color: #fff; font-weight: 700; font-size: 14px;
     padding: 9px 16px; border-radius: 11px; box-shadow: 0 4px 14px rgba(0,0,0,.35); white-space: nowrap; }
@@ -317,11 +317,14 @@
 
   var MAX_SPEED = 84, MAX_REVERSE = -16, ACCEL = 42, BRAKE = 70, FRICTION = 4, TURN_RATE = 135;
 
+  var warnTimer = null;
   function showWarn(msg, color) {
     var w = document.getElementById("warn");
     w.style.display = "block";
     if (color) w.style.background = color;
     w.innerHTML = msg;
+    if (warnTimer) clearTimeout(warnTimer);
+    warnTimer = setTimeout(function () { w.style.display = "none"; }, 3500); // 잠깐 뜬 뒤 자동으로 사라짐
   }
   var arrivalTimer = null;
   function showArrival(names) {
