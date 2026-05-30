@@ -11,7 +11,7 @@
   #cesiumContainer { position: absolute; inset: 0; }
   .cesium-widget-credits, .cesium-viewer-bottom { font-size: 10px; }
 
-  #car { position: absolute; left: 50%; top: 72%; width: 184px; height: 124px; -webkit-mask-image: radial-gradient(ellipse 74% 66% at 50% 46%, #000 56%, transparent 85%); mask-image: radial-gradient(ellipse 74% 66% at 50% 46%, #000 56%, transparent 85%); z-index: 100;
+  #car { position: absolute; left: 50%; top: 72%; width: 184px; height: 124px; z-index: 100;
     pointer-events: none; transform-origin: 50% 50%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); display: none; }
 
   #hud { position: absolute; left: 16px; bottom: 32px; z-index: 101;
@@ -68,7 +68,7 @@
 <body>
   <div id="cesiumContainer"></div>
 
-  <img id="car" src="f15.jpg" alt="F-15" />
+  <img id="car" src="f15.jpg?v=2" alt="F-15" />
 
   <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">고도 <span id="alt">0</span> m · 주행 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
   <div id="help">✈️ <b>강남 F-15 순례</b><br /><kbd>↑</kbd>가속 <kbd>↓</kbd>감속 <kbd>←</kbd><kbd>→</kbd>방향<br /><span style="opacity:.7">시작 시 자동 비행</span></div>
@@ -231,7 +231,7 @@
     var segLen=cum[seg+1]-cum[seg], f=segLen>0?(course.s-cum[seg])/segLen:0, a=path[seg], b=path[seg+1];
     state.lng=a[0]+(b[0]-a[0])*f; state.lat=a[1]+(b[1]-a[1])*f;
     var tgtH=bearingDeg(a[1],a[0],b[1],b[0]), diff=((tgtH-state.heading+540)%360)-180;
-    state.heading += diff*(1-Math.exp(-2.6*dt)); // 비행기식 부드러운 뱅킹 선회
+    state.heading += diff*(1-Math.exp(-1.4*dt)); // 비행기식 부드러운 뱅킹 선회
     state.speed=course.curSpeed; state.dist+=course.curSpeed*dt;
   }
   function setCoursePath(coords){
@@ -346,6 +346,15 @@
 
   document.getElementById("courseBtn").addEventListener("click", function(){ if(!ready)return; if(course.active)stopCourse(); else startCourse(); this.blur(); });
   document.getElementById("finishBtn").addEventListener("click", function(){ document.getElementById("finish").classList.remove("show"); startCourse(); });
+  </script>
+  <script>
+  (function(){ var probe=new Image(); probe.onload=function(){ try{
+    var c=document.createElement("canvas"); c.width=probe.naturalWidth; c.height=probe.naturalHeight;
+    var x=c.getContext("2d"); x.drawImage(probe,0,0);
+    var d=x.getImageData(0,0,c.width,c.height), p=d.data;
+    for(var i=0;i<p.length;i+=4){ if(p[i]>=238&&p[i+1]>=238&&p[i+2]>=238) p[i+3]=0; }
+    x.putImageData(d,0,0); var car=document.getElementById("car"); if(car) car.src=c.toDataURL("image/png");
+  }catch(e){} }; probe.src="f15.jpg?v=2"; })();
   </script>
 </body>
 </html>
