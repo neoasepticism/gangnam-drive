@@ -68,7 +68,7 @@
 <body>
   <div id="cesiumContainer"></div>
 
-  <img id="car" src="f15.jpg?v=2" alt="F-15" />
+  <img id="car" src="f15.png?v=3" alt="F-15" />
 
   <div id="hud"><div class="spd"><span id="spd">0</span><small>km/h</small></div><div class="dist">고도 <span id="alt">0</span> m · 주행 <span id="dist">0.00</span> km</div><div id="gauge"><i></i></div></div>
   <div id="help">✈️ <b>강남 F-15 순례</b><br /><kbd>↑</kbd>가속 <kbd>↓</kbd>감속 <kbd>←</kbd><kbd>→</kbd>방향<br /><span style="opacity:.7">시작 시 자동 비행</span></div>
@@ -346,15 +346,6 @@
 
   document.getElementById("courseBtn").addEventListener("click", function(){ if(!ready)return; if(course.active)stopCourse(); else startCourse(); this.blur(); });
   document.getElementById("finishBtn").addEventListener("click", function(){ document.getElementById("finish").classList.remove("show"); startCourse(); });
-  </script>
-  <script>
-  (function(){ var probe=new Image(); probe.onload=function(){ try{
-    var c=document.createElement("canvas"); c.width=probe.naturalWidth; c.height=probe.naturalHeight;
-    var x=c.getContext("2d"); x.drawImage(probe,0,0);
-    var d=x.getImageData(0,0,c.width,c.height), p=d.data;
-    for(var i=0;i<p.length;i+=4){ if(p[i]>=238&&p[i+1]>=238&&p[i+2]>=238) p[i+3]=0; }
-    x.putImageData(d,0,0); var car=document.getElementById("car"); if(car) car.src=c.toDataURL("image/png");
-  }catch(e){} }; probe.src="f15.jpg?v=2"; })();
   </script>
 </body>
 </html>
