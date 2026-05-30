@@ -39,7 +39,7 @@
   <div id="loading">🛰️ 네이버 거리뷰를 불러오는 중…</div>
 
   <script>
-    function dbg(m){ var d=document.getElementById("debug"); if(d) d.textContent="진단: "+m; if(window.console)console.log("[SV]",m); }
+    var _log=[]; function dbg(m){ _log.push(m); if(_log.length>7)_log.shift(); var d=document.getElementById("debug"); if(d) d.textContent=_log.join("\n"); if(window.console)console.log("[SV]",m); }
     window.addEventListener("error", function(e){ dbg("JS오류 "+(e.message||"")+" @"+(e.lineno||"?")); });
     window.navermap_authFailure = function(){ dbg("네이버 인증실패 → 도메인 등록 필요"); document.getElementById("loading").innerHTML="🔑 네이버 인증 실패<br><small>NCP Maps 앱 Web 서비스 URL에 https://neoasepticism.github.io 등록 필요</small>"; };
   </script>
@@ -91,7 +91,7 @@
       });
     } catch (e) { dbg("Panorama 생성 예외: " + e.message); return; }
 
-    naver.maps.Event.addListener(pano, "init", function(){ dbg("init OK — 거리뷰 로드됨"); hideLoading(); aimAtTarget(); setTimeout(function(){ setPlaying(true); }, 3000); });
+    naver.maps.Event.addListener(pano, "init", function(){ dbg("init OK — 거리뷰 로드됨"); hideLoading(); aimAtTarget(); /* 디버그중 자동순례 비활성 */ });
     naver.maps.Event.addListener(pano, "pano_changed", function(){ var id = pano.getPanoId ? pano.getPanoId() : "?"; dbg("pano_changed id=" + id); hideLoading(); aimAtTarget(); });
     naver.maps.Event.addListener(pano, "pano_status", function(s){ dbg("pano_status=" + (typeof s==="object"?JSON.stringify(s):s)); });
     // 캔버스 크기 갱신 (검은화면 방지)
