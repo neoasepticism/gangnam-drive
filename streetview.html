@@ -99,7 +99,14 @@
     setTimeout(function(){ try{ naver.maps.Event.trigger(pano,"resize"); }catch(e){} }, 1500);
     window.addEventListener("resize", function(){ try{ naver.maps.Event.trigger(pano,"resize"); }catch(e){} });
     showAt(0);
-    setTimeout(function(){ hideLoading(); if(pano && pano.getPanoId && !pano.getPanoId()) dbg("panoId 없음 — 거리뷰 타일 인증(도메인) 또는 위치에 거리뷰 없음"); }, 7000);
+    setTimeout(function(){
+      hideLoading();
+      var el=document.getElementById("pano");
+      var c=el.querySelector("canvas");
+      var imgs=el.querySelectorAll("img");
+      var broken=0; imgs.forEach(function(im){ if(im.naturalWidth===0) broken++; });
+      dbg("DOM children="+el.childElementCount+" / canvas="+(c?(c.width+"x"+c.height):"none")+" / img="+imgs.length+" (깨짐 "+broken+") / sz="+el.clientWidth+"x"+el.clientHeight);
+    }, 4000);
   }
   function aimAtTarget(){ if(!pano||!order[idx])return; var pos=pano.getPosition&&pano.getPosition(); var t=order[idx]; if(pos){ try{ pano.setPov({pan:bearingDeg(pos.lat(),pos.lng(),t.lat,t.lng),tilt:4,fov:100}); }catch(e){} } }
   function showAt(i){ idx=(i+order.length)%order.length; var t=order[idx]; document.getElementById("prog").textContent=(idx+1)+"/"+order.length; document.getElementById("name").textContent=t.name; if(pano){ pano.setPosition(new naver.maps.LatLng(t.lat,t.lng)); setTimeout(aimAtTarget,500); } }
